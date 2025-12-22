@@ -128,6 +128,47 @@ const MyArticles = () => {
           </div>
         </div>
 
+        {/* Stats */}
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-6">
+          <div className="card p-5">
+            <div className="flex items-center gap-4">
+              <div className="w-12 h-12 bg-blue-100 rounded-xl flex items-center justify-center">
+                <FileText className="h-6 w-6 text-blue-600" />
+              </div>
+              <div>
+                <p className="text-2xl font-bold text-gray-900">{articles.length}</p>
+                <p className="text-sm text-gray-500">Total Articles</p>
+              </div>
+            </div>
+          </div>
+          <div className="card p-5">
+            <div className="flex items-center gap-4">
+              <div className="w-12 h-12 bg-green-100 rounded-xl flex items-center justify-center">
+                <Globe className="h-6 w-6 text-green-600" />
+              </div>
+              <div>
+                <p className="text-2xl font-bold text-gray-900">
+                  {articles.filter(a => a.status === 'published').length}
+                </p>
+                <p className="text-sm text-gray-500">Published</p>
+              </div>
+            </div>
+          </div>
+          <div className="card p-5">
+            <div className="flex items-center gap-4">
+              <div className="w-12 h-12 bg-purple-100 rounded-xl flex items-center justify-center">
+                <Eye className="h-6 w-6 text-purple-600" />
+              </div>
+              <div>
+                <p className="text-2xl font-bold text-gray-900">
+                  {articles.reduce((sum, a) => sum + (a.views || 0), 0)}
+                </p>
+                <p className="text-sm text-gray-500">Total Views</p>
+              </div>
+            </div>
+          </div>
+        </div>
+
         {/* Articles List */}
         {loading ? (
           <div className="space-y-4">
@@ -225,47 +266,6 @@ const MyArticles = () => {
             </table>
           </div>
         )}
-
-        {/* Stats */}
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mt-6">
-          <div className="card p-5">
-            <div className="flex items-center gap-4">
-              <div className="w-12 h-12 bg-blue-100 rounded-xl flex items-center justify-center">
-                <FileText className="h-6 w-6 text-blue-600" />
-              </div>
-              <div>
-                <p className="text-2xl font-bold text-gray-900">{articles.length}</p>
-                <p className="text-sm text-gray-500">Total Articles</p>
-              </div>
-            </div>
-          </div>
-          <div className="card p-5">
-            <div className="flex items-center gap-4">
-              <div className="w-12 h-12 bg-green-100 rounded-xl flex items-center justify-center">
-                <Globe className="h-6 w-6 text-green-600" />
-              </div>
-              <div>
-                <p className="text-2xl font-bold text-gray-900">
-                  {articles.filter(a => a.status === 'published').length}
-                </p>
-                <p className="text-sm text-gray-500">Published</p>
-              </div>
-            </div>
-          </div>
-          <div className="card p-5">
-            <div className="flex items-center gap-4">
-              <div className="w-12 h-12 bg-purple-100 rounded-xl flex items-center justify-center">
-                <Eye className="h-6 w-6 text-purple-600" />
-              </div>
-              <div>
-                <p className="text-2xl font-bold text-gray-900">
-                  {articles.reduce((sum, a) => sum + (a.views || 0), 0)}
-                </p>
-                <p className="text-sm text-gray-500">Total Views</p>
-              </div>
-            </div>
-          </div>
-        </div>
       </div>
     </div>
   );

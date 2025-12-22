@@ -6,7 +6,7 @@ import {
   Home, Search, User, Library, Users, Settings, HelpCircle,
   BookOpen, MessageSquare, Mail, Phone, Clock, ChevronRight,
   FileText, Video, Book, ExternalLink, Send, CheckCircle,
-  BarChart3, Zap, Shield, Globe, Headphones
+  BarChart3, Zap, Shield, Globe, Headphones, ShieldCheck
 } from 'lucide-react';
 
 const Support = () => {
@@ -26,13 +26,20 @@ const Support = () => {
     { icon: Search, label: 'Search', path: '/search' },
   ];
 
-  const workspaceLinks = [
+  const allWorkspaceLinks = [
     { icon: User, label: 'My Profile', path: '/profile' },
     { icon: Library, label: 'My Library', path: '/bookmarks' },
-    { icon: BarChart3, label: 'Analytics', path: '/analytics' },
+    { icon: BarChart3, label: 'Analytics', path: '/analytics', hideForViewer: true },
     { icon: MessageSquare, label: 'Feedback', path: '/feedback' },
-    { icon: Users, label: 'Team Directory', path: '/wiki' },
+    { icon: Users, label: 'Team Directory', path: '/wiki', hideForViewer: true },
+    { icon: ShieldCheck, label: 'Admin Panel', path: '/admin', adminOnly: true },
   ];
+  
+  const workspaceLinks = allWorkspaceLinks.filter(link => {
+    if (link.adminOnly && user?.role !== 'admin' && user?.role !== 'editor') return false;
+    if (link.hideForViewer && user?.role === 'viewer') return false;
+    return true;
+  });
 
   const bottomLinks = [
     { icon: Settings, label: 'Settings', path: '/settings' },

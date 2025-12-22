@@ -1,4 +1,5 @@
 const Question = require('../models/Question');
+const Notification = require('../models/Notification');
 
 // @desc    Get questions
 // @route   GET /api/qa
@@ -73,6 +74,18 @@ const addAnswer = async (req, res) => {
 
             question.answers.push(answer);
             await question.save();
+
+            // Send notification to question author if answerer is not the author
+            if (question.author.toString() !== req.user._id.toString()) {
+                await Notification.create({
+                    recipient: question.author,
+                    sender: req.user._id,
+                    type: 'question_answer',
+                    question: question._id,
+                    message: `${req.user.username} answered your question "${question.title}"`
+                });
+            }
+
             res.status(201).json(question);
         } else {
             res.status(404).json({ message: 'Question not found' });

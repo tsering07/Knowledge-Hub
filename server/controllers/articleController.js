@@ -1,11 +1,35 @@
 const Article = require('../models/Article');
+const Notification = require('../models/Notification');
+const User = require('../models/User');
 
 // @desc    Get all articles
 // @route   GET /api/articles
-// @access  Public
+// @access  Public (but internal articles require auth)
 const getArticles = async (req, res) => {
     try {
-        const articles = await Article.find({ status: 'published' })
+        // Check if user is authenticated via token
+        let isAuthenticated = false;
+        const token = req.headers.authorization?.split(' ')[1];
+        if (token) {
+            try {
+                const jwt = require('jsonwebtoken');
+                jwt.verify(token, process.env.JWT_SECRET);
+                isAuthenticated = true;
+            } catch (err) {
+                isAuthenticated = false;
+            }
+        }
+
+        // Build query - if not authenticated, only show public articles
+        const query = { status: 'published' };
+        if (!isAuthenticated) {
+            query.visibility = 'public';
+        } else {
+            // Authenticated users see public and internal (not private)
+            query.visibility = { $in: ['public', 'internal'] };
+        }
+
+        const articles = await Article.find(query)
             .populate('author', 'username')
             .populate('category', 'name icon')
             .sort({ createdAt: -1 });
@@ -47,13 +71,35 @@ const getBookmarkedArticles = async (req, res) => {
 
 // @desc    Search articles
 // @route   GET /api/articles/search
-// @access  Public
+// @access  Public (but internal articles require auth)
 const searchArticles = async (req, res) => {
     const { q } = req.query;
     try {
+        // Check if user is authenticated
+        let isAuthenticated = false;
+        const token = req.headers.authorization?.split(' ')[1];
+        if (token) {
+            try {
+                const jwt = require('jsonwebtoken');
+                jwt.verify(token, process.env.JWT_SECRET);
+                isAuthenticated = true;
+            } catch (err) {
+                isAuthenticated = false;
+            }
+        }
+
+        // Build visibility filter
+        const visibilityFilter = isAuthenticated 
+            ? { $in: ['public', 'internal'] }
+            : 'public';
+
         // MongoDB Text Search
         const articles = await Article.find(
-            { $text: { $search: q }, status: 'published' },
+            { 
+                $text: { $search: q }, 
+                status: 'published',
+                visibility: visibilityFilter
+            },
             { score: { $meta: 'textScore' } }
         )
             .sort({ score: { $meta: 'textScore' } })
@@ -68,18 +114,52 @@ const searchArticles = async (req, res) => {
 
 // @desc    Get single article by slug
 // @route   GET /api/articles/:slug
-// @access  Public
+// @access  Public (but internal articles require auth)
 const getArticleBySlug = async (req, res) => {
     try {
         const article = await Article.findOne({ slug: req.params.slug })
             .populate('author', 'username')
             .populate('category', 'name icon')
-            .populate('versions.editor', 'username');
+            .populate('versions.editor', 'username')
+            .populate('comments.user', 'username');
+
+        if (!article) {
+            return res.status(404).json({ message: 'Article not found' });
+        }
+
+        // Check visibility permissions
+        if (article.visibility === 'internal' || article.visibility === 'private') {
+            const token = req.headers.authorization?.split(' ')[1];
+            if (!token) {
+                return res.status(401).json({ message: 'Please login to view this article' });
+            }
+            try {
+                const jwt = require('jsonwebtoken');
+                jwt.verify(token, process.env.JWT_SECRET);
+            } catch (err) {
+                return res.status(401).json({ message: 'Please login to view this article' });
+            }
+        }
+
+        // Increment views
+        article.views += 1;
+        await article.save();
+        res.json(article);
+    } catch (error) {
+        res.status(500).json({ message: error.message });
+    }
+};
+
+// @desc    Get single article by ID (for editing)
+// @route   GET /api/articles/id/:id
+// @access  Private
+const getArticleById = async (req, res) => {
+    try {
+        const article = await Article.findById(req.params.id)
+            .populate('author', 'username')
+            .populate('category', 'name icon');
 
         if (article) {
-            // Increment views
-            article.views += 1;
-            await article.save();
             res.json(article);
         } else {
             res.status(404).json({ message: 'Article not found' });
@@ -93,7 +173,7 @@ const getArticleBySlug = async (req, res) => {
 // @route   POST /api/articles
 // @access  Private (Contributor/Editor)
 const createArticle = async (req, res) => {
-    const { title, content, tags, category, slug } = req.body;
+    const { title, content, tags, category, slug, status, visibility, description, attachments, coverImage } = req.body;
 
     try {
         const newArticle = new Article({
@@ -103,10 +183,30 @@ const createArticle = async (req, res) => {
             tags,
             category,
             author: req.user._id,
-            status: 'published', // Simplified for now, can be 'draft'
+            status: status || 'published',
+            visibility: visibility || 'public',
+            description: description || '',
+            attachments: attachments || [],
+            coverImage: coverImage || null,
         });
 
         const createdArticle = await newArticle.save();
+
+        // Notify all viewers about new public article
+        if (createdArticle.status === 'published' && createdArticle.visibility === 'public') {
+            const viewers = await User.find({ role: 'viewer' }).select('_id');
+            const notifications = viewers.map(viewer => ({
+                recipient: viewer._id,
+                sender: req.user._id,
+                type: 'new_article',
+                article: createdArticle._id,
+                message: `New article published: "${createdArticle.title}" by ${req.user.username}`
+            }));
+            if (notifications.length > 0) {
+                await Notification.insertMany(notifications);
+            }
+        }
+
         res.status(201).json(createdArticle);
     } catch (error) {
         res.status(400).json({ message: error.message });
@@ -117,14 +217,16 @@ const createArticle = async (req, res) => {
 // @route   PUT /api/articles/:id
 // @access  Private (Author/Editor)
 const updateArticle = async (req, res) => {
-    const { title, content, tags, category, status } = req.body;
+    const { title, content, tags, category, status, visibility, description, attachments, coverImage } = req.body;
 
     try {
         const article = await Article.findById(req.params.id);
 
         if (article) {
-            // Check permission: Owner or Editor
-            if (article.author.toString() !== req.user._id.toString() && req.user.role !== 'editor') {
+            // Check permission: Owner, Editor, or Admin
+            if (article.author.toString() !== req.user._id.toString() && 
+                req.user.role !== 'editor' && 
+                req.user.role !== 'admin') {
                 return res.status(403).json({ message: 'Not authorized to edit this article' });
             }
 
@@ -140,6 +242,10 @@ const updateArticle = async (req, res) => {
             article.tags = tags || article.tags;
             article.category = category || article.category;
             article.status = status || article.status;
+            article.visibility = visibility || article.visibility;
+            article.description = description !== undefined ? description : article.description;
+            article.attachments = attachments || article.attachments;
+            article.coverImage = coverImage !== undefined ? coverImage : article.coverImage;
 
             const updatedArticle = await article.save();
             res.json(updatedArticle);
@@ -159,8 +265,10 @@ const deleteArticle = async (req, res) => {
         const article = await Article.findById(req.params.id);
 
         if (article) {
-            // Check permission: Owner or Editor
-            if (article.author.toString() !== req.user._id.toString() && req.user.role !== 'editor') {
+            // Check permission: Owner, Editor, or Admin
+            if (article.author.toString() !== req.user._id.toString() && 
+                req.user.role !== 'editor' && 
+                req.user.role !== 'admin') {
                 return res.status(403).json({ message: 'Not authorized to delete this article' });
             }
 
@@ -238,6 +346,17 @@ const addComment = async (req, res) => {
         });
 
         await article.save();
+
+        // Send notification to article author if commenter is not the author
+        if (article.author.toString() !== req.user._id.toString()) {
+            await Notification.create({
+                recipient: article.author,
+                sender: req.user._id,
+                type: 'comment',
+                article: article._id,
+                message: `${req.user.username} commented on your article "${article.title}"`
+            });
+        }
         
         const updatedArticle = await Article.findById(req.params.id)
             .populate('comments.user', 'username');
@@ -385,12 +504,49 @@ const getArticleStats = async (req, res) => {
     }
 };
 
+// @desc    Mark article as helpful/not helpful
+// @route   POST /api/articles/:id/helpful
+// @access  Private
+const markHelpful = async (req, res) => {
+    try {
+        const { helpful } = req.body; // true for "Yes", false for "No"
+        const article = await Article.findById(req.params.id);
+        
+        if (!article) {
+            return res.status(404).json({ message: 'Article not found' });
+        }
+
+        // Check if helpful is explicitly provided (can be true or false)
+        if (helpful === undefined || helpful === null) {
+            return res.status(400).json({ message: 'Helpful field is required' });
+        }
+
+        const isHelpful = helpful === true || helpful === 'true';
+
+        // Send notification to article author
+        if (article.author.toString() !== req.user._id.toString()) {
+            await Notification.create({
+                recipient: article.author,
+                sender: req.user._id,
+                type: isHelpful ? 'helpful_yes' : 'helpful_no',
+                article: article._id,
+                message: `${req.user.username} found your article "${article.title}" ${isHelpful ? 'helpful' : 'not helpful'}`
+            });
+        }
+
+        res.json({ message: 'Feedback recorded', helpful: isHelpful });
+    } catch (error) {
+        res.status(500).json({ message: error.message });
+    }
+};
+
 module.exports = {
     getArticles,
     getMyArticles,
     getBookmarkedArticles,
     searchArticles,
     getArticleBySlug,
+    getArticleById,
     createArticle,
     updateArticle,
     deleteArticle,
@@ -400,4 +556,5 @@ module.exports = {
     deleteComment,
     getAnalytics,
     getArticleStats,
+    markHelpful,
 };

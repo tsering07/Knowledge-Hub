@@ -56,6 +56,20 @@ const articleSchema = new mongoose.Schema({
         enum: ['draft', 'published', 'archived'],
         default: 'draft',
     },
+    visibility: {
+        type: String,
+        enum: ['public', 'internal', 'private'],
+        default: 'public',
+    },
+    description: {
+        type: String,
+        trim: true,
+    },
+    // Cover/Thumbnail image for article cards
+    coverImage: {
+        type: String,
+        default: null,
+    },
     // NEW: Likes system
     likes: [{
         type: mongoose.Schema.Types.ObjectId,
@@ -74,6 +88,18 @@ const articleSchema = new mongoose.Schema({
         editor: {
             type: mongoose.Schema.Types.ObjectId,
             ref: 'User',
+        }
+    }],
+    // Attachments (images, PDFs, docs)
+    attachments: [{
+        filename: String,
+        originalName: String,
+        path: String,
+        mimetype: String,
+        size: Number,
+        uploadedAt: {
+            type: Date,
+            default: Date.now
         }
     }],
 }, {

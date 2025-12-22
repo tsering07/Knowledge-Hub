@@ -1,16 +1,21 @@
-import { useState, useContext } from 'react';
+import { useState, useContext, useRef, useEffect } from 'react';
 import { Link, useLocation } from 'react-router-dom';
+import axios from 'axios';
 import AuthContext from '../context/AuthContext';
 import {
   Home, Search, User, Library, Users, Settings, HelpCircle,
   Bell, Shield, Palette, Link2, Camera, Mail, Phone, MapPin, Hash,
-  BookOpen, Save, BarChart3, MessageSquare
+  BookOpen, Save, BarChart3, MessageSquare, ShieldCheck, Upload, CheckCircle
 } from 'lucide-react';
 
 const SettingsPage = () => {
-  const { user } = useContext(AuthContext);
+  const { user, updateUser } = useContext(AuthContext);
   const location = useLocation();
   const [activeSection, setActiveSection] = useState('profile');
+  const [profilePhoto, setProfilePhoto] = useState(user?.profilePhoto || null);
+  const [uploading, setUploading] = useState(false);
+  const [saveSuccess, setSaveSuccess] = useState(false);
+  const fileInputRef = useRef(null);
   const [formData, setFormData] = useState({
     firstName: user?.firstName || '',
     lastName: user?.lastName || '',
@@ -22,18 +27,102 @@ const SettingsPage = () => {
     location: user?.location || '',
   });
 
+  // Load user profile data on mount
+  useEffect(() => {
+    const fetchProfile = async () => {
+      try {
+        const token = localStorage.getItem('token');
+        if (!token) return;
+        
+        const { data } = await axios.get('http://localhost:5000/api/upload/profile', {
+          headers: { Authorization: `Bearer ${token}` }
+        });
+        
+        if (data) {
+          setProfilePhoto(data.profilePhoto);
+          setFormData({
+            firstName: data.firstName || '',
+            lastName: data.lastName || '',
+            jobTitle: data.jobTitle || '',
+            bio: data.bio || '',
+            email: data.email || '',
+            phone: data.phone || '',
+            slack: data.username || '',
+            location: data.location || '',
+          });
+        }
+      } catch (error) {
+        console.error('Error fetching profile:', error);
+      }
+    };
+    fetchProfile();
+  }, []);
+
+  // Handle profile photo upload
+  const handlePhotoUpload = async (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    // Validate file type
+    if (!file.type.startsWith('image/')) {
+      alert('Please upload an image file (JPG, PNG, etc.)');
+      return;
+    }
+
+    // Validate file size (max 2MB)
+    if (file.size > 2 * 1024 * 1024) {
+      alert('File size must be less than 2MB');
+      return;
+    }
+
+    setUploading(true);
+    const formData = new FormData();
+    formData.append('photo', file);
+
+    try {
+      const token = localStorage.getItem('token');
+      const { data } = await axios.post('http://localhost:5000/api/upload/profile-photo', formData, {
+        headers: {
+          Authorization: `Bearer ${token}`,
+          'Content-Type': 'multipart/form-data'
+        }
+      });
+
+      setProfilePhoto(data.profilePhoto);
+      // Update AuthContext user data
+      if (updateUser) {
+        updateUser({ profilePhoto: data.profilePhoto });
+      }
+    } catch (error) {
+      console.error('Upload error:', error);
+      alert('Failed to upload photo. Please try again.');
+    } finally {
+      setUploading(false);
+      if (fileInputRef.current) {
+        fileInputRef.current.value = '';
+      }
+    }
+  };
+
   const sidebarLinks = [
     { icon: Home, label: 'Home', path: '/' },
     { icon: Search, label: 'Search', path: '/search' },
   ];
 
-  const workspaceLinks = [
+  const allWorkspaceLinks = [
     { icon: User, label: 'My Profile', path: '/profile' },
     { icon: Library, label: 'My Library', path: '/bookmarks' },
-    { icon: BarChart3, label: 'Analytics', path: '/analytics' },
+    { icon: BarChart3, label: 'Analytics', path: '/analytics', hideForViewer: true },
     { icon: MessageSquare, label: 'Feedback', path: '/feedback' },
-    { icon: Users, label: 'Team Directory', path: '/wiki' },
+    { icon: Users, label: 'Team Directory', path: '/wiki', hideForViewer: true },
+    { icon: ShieldCheck, label: 'Admin Panel', path: '/admin', adminOnly: true },
   ];
+  
+  const workspaceLinks = allWorkspaceLinks.filter(link => {
+    if (link.adminOnly && user?.role !== 'admin' && user?.role !== 'editor') return false;
+    if (link.hideForViewer && user?.role === 'viewer') return false;
+    return true;
+  });
 
   const bottomLinks = [
     { icon: Settings, label: 'Settings', path: '/settings' },
@@ -52,9 +141,29 @@ const SettingsPage = () => {
     setFormData({ ...formData, [e.target.name]: e.target.value });
   };
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
-    alert('Settings saved successfully!');
+    setSaveSuccess(false);
+    
+    try {
+      const token = localStorage.getItem('token');
+      await axios.put('http://localhost:5000/api/upload/profile', {
+        firstName: formData.firstName,
+        lastName: formData.lastName,
+        jobTitle: formData.jobTitle,
+        bio: formData.bio,
+        phone: formData.phone,
+        location: formData.location,
+      }, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      
+      setSaveSuccess(true);
+      setTimeout(() => setSaveSuccess(false), 3000);
+    } catch (error) {
+      console.error('Error saving profile:', error);
+      alert('Failed to save profile. Please try again.');
+    }
   };
 
   return (
@@ -133,23 +242,43 @@ const SettingsPage = () => {
       {/* Main Content */}
       <main className="flex-1 ml-56 p-8">
         <div className="max-w-5xl mx-auto">
-          {/* Header */}
-          <div className="mb-8">
-            <h1 className="text-2xl font-bold text-gray-900">Account Settings</h1>
-            <p className="text-gray-500 mt-1">Manage your profile details, notifications preferences, and security settings.</p>
+          {/* Header with Image */}
+          <div className="card overflow-hidden mb-8 animate-fade-in-up">
+            <div className="h-32 bg-gradient-to-r from-emerald-500 via-teal-500 to-cyan-500 relative">
+              <div className="absolute inset-0">
+                <div className="absolute top-4 left-10 w-12 h-12 bg-white/10 rounded-full animate-float"></div>
+                <div className="absolute bottom-4 right-20 w-16 h-16 bg-white/10 rounded-full animate-float animation-delay-200"></div>
+              </div>
+              <img 
+                src="https://images.unsplash.com/photo-1551434678-e076c223a692?w=1200&h=150&fit=crop"
+                alt="Settings banner"
+                className="w-full h-full object-cover opacity-30"
+              />
+            </div>
+            <div className="p-6 -mt-8 relative">
+              <div className="flex items-center gap-4">
+                <div className="w-16 h-16 bg-gradient-to-br from-teal-400 to-cyan-600 rounded-xl flex items-center justify-center ring-4 ring-white shadow-lg animate-scale-in">
+                  <Settings className="h-8 w-8 text-white" />
+                </div>
+                <div className="animate-fade-in-up animation-delay-100">
+                  <h1 className="text-2xl font-bold text-gray-900">Account Settings</h1>
+                  <p className="text-gray-500">Manage your profile, notifications, and security</p>
+                </div>
+              </div>
+            </div>
           </div>
 
           <div className="flex gap-8">
             {/* Settings Navigation */}
             <aside className="w-56 shrink-0">
-              <nav className="space-y-1">
-                {settingsSections.map((section) => (
+              <nav className="space-y-1 animate-fade-in-left">
+                {settingsSections.map((section, index) => (
                   <button
                     key={section.id}
                     onClick={() => setActiveSection(section.id)}
-                    className={`w-full flex items-center gap-3 px-4 py-2.5 rounded-lg text-sm transition-colors ${
+                    className={`w-full flex items-center gap-3 px-4 py-2.5 rounded-lg text-sm transition-all hover-lift animation-delay-${index * 100} ${
                       activeSection === section.id
-                        ? 'bg-blue-50 text-blue-600 font-medium'
+                        ? 'bg-blue-50 text-blue-600 font-medium shadow-sm'
                         : 'text-gray-600 hover:bg-gray-100'
                     }`}
                   >
@@ -161,25 +290,64 @@ const SettingsPage = () => {
             </aside>
 
             {/* Settings Content */}
-            <div className="flex-1">
+            <div className="flex-1 animate-fade-in-up animation-delay-200">
               {activeSection === 'profile' && (
                 <form onSubmit={handleSubmit} className="space-y-6">
+                  {/* Success Message */}
+                  {saveSuccess && (
+                    <div className="bg-green-50 text-green-700 px-4 py-3 rounded-lg flex items-center gap-3 border border-green-200">
+                      <CheckCircle className="h-5 w-5" />
+                      <span>Profile saved successfully!</span>
+                    </div>
+                  )}
+
                   {/* Public Profile */}
-                  <div className="card p-6">
+                  <div className="card p-6 hover-lift">
                     <h2 className="text-lg font-semibold text-gray-900 mb-6">Public Profile</h2>
                     
                     <div className="flex items-start gap-6 mb-6">
-                      <div className="relative">
-                        <div className="w-20 h-20 bg-gradient-to-br from-blue-400 to-blue-600 rounded-full flex items-center justify-center">
-                          <span className="text-2xl font-bold text-white">
-                            {(formData.firstName?.charAt(0) || user?.username?.charAt(0) || 'U').toUpperCase()}{(formData.lastName?.charAt(0) || user?.username?.charAt(1) || '').toUpperCase()}
-                          </span>
+                      <div className="relative group">
+                        {profilePhoto ? (
+                          <img 
+                            src={`http://localhost:5000${profilePhoto}`}
+                            alt="Profile"
+                            className="w-20 h-20 rounded-full object-cover ring-4 ring-white shadow-lg transition-transform group-hover:scale-105"
+                          />
+                        ) : (
+                          <div className="w-20 h-20 bg-gradient-to-br from-blue-400 to-purple-600 rounded-full flex items-center justify-center transition-transform group-hover:scale-105">
+                            <span className="text-2xl font-bold text-white">
+                              {(formData.firstName?.charAt(0) || user?.username?.charAt(0) || 'U').toUpperCase()}{(formData.lastName?.charAt(0) || user?.username?.charAt(1) || '').toUpperCase()}
+                            </span>
+                          </div>
+                        )}
+                        <div 
+                          className="absolute inset-0 bg-black/40 rounded-full opacity-0 group-hover:opacity-100 flex items-center justify-center transition-opacity cursor-pointer"
+                          onClick={() => fileInputRef.current?.click()}
+                        >
+                          {uploading ? (
+                            <div className="w-6 h-6 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                          ) : (
+                            <Camera className="h-6 w-6 text-white" />
+                          )}
                         </div>
+                        <input
+                          ref={fileInputRef}
+                          type="file"
+                          accept="image/*"
+                          onChange={handlePhotoUpload}
+                          className="hidden"
+                        />
                       </div>
                       <div>
-                        <button type="button" className="text-blue-600 hover:underline text-sm font-medium">
-                          Change Avatar
+                        <button 
+                          type="button" 
+                          onClick={() => fileInputRef.current?.click()}
+                          disabled={uploading}
+                          className="text-blue-600 hover:underline text-sm font-medium disabled:opacity-50"
+                        >
+                          {uploading ? 'Uploading...' : 'Change Avatar'}
                         </button>
+                        <p className="text-xs text-gray-400 mt-1">JPG, PNG max 2MB</p>
                       </div>
                     </div>
 

@@ -60,20 +60,37 @@ const Bookmarks = () => {
 
   return (
     <div className="min-h-screen bg-slate-50">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 py-8">
-        {/* Header */}
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-8">
-          <div>
-            <h1 className="text-2xl font-bold text-gray-900">Bookmarks</h1>
-            <p className="text-gray-500 mt-1">
-              {bookmarks.length} saved {bookmarks.length === 1 ? 'article' : 'articles'}
-            </p>
-          </div>
-          <Link to="/wiki" className="btn btn-outline flex items-center gap-2 w-fit">
-            <FileText className="h-4 w-4" />
-            Browse Articles
-          </Link>
+      {/* Hero Header with Animation */}
+      <div className="bg-gradient-to-r from-amber-500 via-orange-500 to-red-500 relative overflow-hidden">
+        {/* Animated Background */}
+        <div className="absolute inset-0">
+          <div className="absolute top-10 left-10 w-20 h-20 bg-white/10 rounded-full animate-float"></div>
+          <div className="absolute bottom-10 right-20 w-32 h-32 bg-white/10 rounded-full animate-float animation-delay-200"></div>
+          <div className="absolute top-1/2 right-1/3 w-16 h-16 bg-white/5 rounded-full animate-bounce-slow"></div>
         </div>
+
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 py-12 relative z-10">
+          <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
+            <div className="animate-fade-in-up">
+              <div className="flex items-center gap-3 mb-2">
+                <div className="p-2 bg-white/20 rounded-lg animate-bounce-slow">
+                  <Bookmark className="h-6 w-6 text-white" />
+                </div>
+                <h1 className="text-3xl font-bold text-white">My Bookmarks</h1>
+              </div>
+              <p className="text-amber-100">
+                {bookmarks.length} saved {bookmarks.length === 1 ? 'article' : 'articles'} • Your personal reading list
+              </p>
+            </div>
+            <Link to="/wiki" className="btn bg-white text-orange-600 hover:bg-orange-50 flex items-center gap-2 w-fit animate-fade-in-right shadow-lg hover-lift">
+              <FileText className="h-4 w-4" />
+              Browse Articles
+            </Link>
+          </div>
+        </div>
+      </div>
+
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 py-8">
 
         {/* Search and View Toggle */}
         <div className="card p-4 mb-6">
@@ -122,30 +139,39 @@ const Bookmarks = () => {
             ))}
           </div>
         ) : filteredBookmarks.length === 0 ? (
-          <div className="card p-12 text-center">
-            <Bookmark className="h-12 w-12 text-gray-300 mx-auto mb-4" />
-            <h2 className="text-xl font-bold text-gray-900 mb-2">No Bookmarks</h2>
-            <p className="text-gray-500 mb-6">
-              {search ? `No bookmarks match "${search}"` : 'Articles you bookmark will appear here'}
+          <div className="card p-12 text-center animate-fade-in-up">
+            <div className="relative inline-block mb-6">
+              <img 
+                src="https://images.unsplash.com/photo-1456513080510-7bf3a84b82f8?w=200&h=200&fit=crop" 
+                alt="Empty bookmarks"
+                className="w-32 h-32 rounded-full mx-auto object-cover shadow-lg"
+              />
+              <div className="absolute -bottom-2 -right-2 w-12 h-12 bg-amber-100 rounded-full flex items-center justify-center animate-bounce-slow">
+                <Bookmark className="h-6 w-6 text-amber-600" />
+              </div>
+            </div>
+            <h2 className="text-xl font-bold text-gray-900 mb-2">No Bookmarks Yet</h2>
+            <p className="text-gray-500 mb-6 max-w-md mx-auto">
+              {search ? `No bookmarks match "${search}"` : 'Start building your reading list by bookmarking articles you find interesting!'}
             </p>
-            <Link to="/wiki" className="btn btn-primary">
+            <Link to="/wiki" className="btn btn-primary hover-lift">
               Explore Articles
             </Link>
           </div>
         ) : viewMode === 'list' ? (
           <div className="space-y-6">
-            {Object.entries(groupedBookmarks).map(([category, items]) => (
-              <div key={category}>
+            {Object.entries(groupedBookmarks).map(([category, items], catIndex) => (
+              <div key={category} className={`animate-fade-in-up animation-delay-${catIndex * 100}`}>
                 <div className="flex items-center gap-2 mb-3">
                   <Folder className="h-5 w-5 text-gray-400" />
                   <h2 className="font-semibold text-gray-900">{category}</h2>
                   <span className="text-sm text-gray-500">({items.length})</span>
                 </div>
                 <div className="space-y-3">
-                  {items.map((bookmark) => (
-                    <div key={bookmark._id} className="card card-hover p-5">
+                  {items.map((bookmark, index) => (
+                    <div key={bookmark._id} className={`card card-hover p-5 hover-lift animate-fade-in-up animation-delay-${index * 100}`}>
                       <div className="flex items-start gap-4">
-                        <div className="w-12 h-12 bg-blue-100 rounded-xl flex items-center justify-center shrink-0">
+                        <div className="w-12 h-12 bg-gradient-to-br from-blue-100 to-indigo-100 rounded-xl flex items-center justify-center shrink-0">
                           <FileText className="h-6 w-6 text-blue-600" />
                         </div>
                         <div className="flex-1 min-w-0">

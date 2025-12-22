@@ -6,8 +6,12 @@ import {
   Home, Search, User, Library, Users, Settings, HelpCircle,
   BookOpen, Eye, Clock, TrendingUp, Share2, Download, Calendar,
   BarChart3, FileText, ArrowUp, ArrowDown, MessageSquare, Heart,
-  Bookmark, RefreshCw
+  Bookmark, RefreshCw, ShieldCheck
 } from 'lucide-react';
+import {
+  LineChart, Line, AreaChart, Area, XAxis, YAxis, CartesianGrid,
+  Tooltip, ResponsiveContainer, Legend
+} from 'recharts';
 
 const Analytics = () => {
   const { user } = useContext(AuthContext);
@@ -67,13 +71,20 @@ const Analytics = () => {
     { icon: Search, label: 'Search', path: '/search' },
   ];
 
-  const workspaceLinks = [
+  const allWorkspaceLinks = [
     { icon: User, label: 'My Profile', path: '/profile' },
     { icon: Library, label: 'My Library', path: '/bookmarks' },
-    { icon: BarChart3, label: 'Analytics', path: '/analytics' },
+    { icon: BarChart3, label: 'Analytics', path: '/analytics', hideForViewer: true },
     { icon: MessageSquare, label: 'Feedback', path: '/feedback' },
-    { icon: Users, label: 'Team Directory', path: '/wiki' },
+    { icon: Users, label: 'Team Directory', path: '/wiki', hideForViewer: true },
+    { icon: ShieldCheck, label: 'Admin Panel', path: '/admin', adminOnly: true },
   ];
+  
+  const workspaceLinks = allWorkspaceLinks.filter(link => {
+    if (link.adminOnly && user?.role !== 'admin' && user?.role !== 'editor') return false;
+    if (link.hideForViewer && user?.role === 'viewer') return false;
+    return true;
+  });
 
   const bottomLinks = [
     { icon: Settings, label: 'Settings', path: '/settings' },
@@ -169,10 +180,32 @@ const Analytics = () => {
       {/* Main Content */}
       <main className="flex-1 ml-56 p-8">
         <div className="max-w-6xl mx-auto">
+          {/* User Profile Banner */}
+          <div className="card p-6 mb-6 bg-gradient-to-r from-blue-50 to-purple-50">
+            <div className="flex items-center gap-4">
+              <div className="w-16 h-16 bg-blue-500 rounded-full flex items-center justify-center text-white text-2xl font-bold">
+                {user?.username?.charAt(0).toUpperCase() || 'U'}
+              </div>
+              <div className="flex-1">
+                <h2 className="text-xl font-bold text-gray-900">{user?.username || 'User'}</h2>
+                <p className="text-gray-500">{user?.email}</p>
+                <p className="text-sm text-gray-400 mt-1">
+                  Member since {user?.createdAt ? new Date(user.createdAt).toLocaleDateString('en-US', { month: 'long', year: 'numeric' }) : 'Unknown'}
+                </p>
+              </div>
+              <div className="text-right">
+                <p className="text-sm text-gray-500">Role</p>
+                <p className="text-lg font-semibold text-blue-600 capitalize">{user?.role || 'Contributor'}</p>
+              </div>
+            </div>
+          </div>
+
           {/* Header */}
           <div className="flex items-center justify-between mb-8">
             <div>
-              <h1 className="text-2xl font-bold text-gray-900">Creator Analytics</h1>
+              <h1 className="text-2xl font-bold text-gray-900">
+                {user?.username ? `${user.username}'s Analytics` : 'Creator Analytics'}
+              </h1>
               <p className="text-gray-500 mt-1">Track your content performance, audience engagement, and reach.</p>
               <p className="text-xs text-gray-400 mt-1">
                 Last updated: {lastUpdated.toLocaleTimeString()}
@@ -266,34 +299,84 @@ const Analytics = () => {
                   <span className="text-sm text-gray-600">Views</span>
                 </div>
                 <div className="flex items-center gap-2">
-                  <div className="w-3 h-3 bg-blue-200 rounded-full"></div>
+                  <div className="w-3 h-3 bg-green-400 rounded-full"></div>
                   <span className="text-sm text-gray-600">Unique Visitors</span>
                 </div>
               </div>
             </div>
             
-            {/* Bar Chart */}
+            {/* Interactive Line/Area Chart */}
             {dailyViews.length > 0 ? (
-              <div className="flex items-end gap-2 h-64 px-4 overflow-x-auto">
-                {dailyViews.map((data, i) => (
-                  <div key={i} className="flex-1 min-w-[30px] flex flex-col items-center gap-2 group">
-                    <div className="relative w-full flex flex-col items-center">
-                      <div className="absolute -top-8 bg-gray-800 text-white text-xs px-2 py-1 rounded opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap">
-                        {data.views.toLocaleString()} views
-                      </div>
-                      <div
-                        className="w-full bg-blue-500 rounded-t-sm transition-all hover:bg-blue-600"
-                        style={{ height: `${Math.max((data.views / maxViews) * 200, 4)}px` }}
-                      ></div>
-                    </div>
-                    <span className="text-xs text-gray-500 truncate w-full text-center">
-                      {new Date(data.date).getDate()}
-                    </span>
-                  </div>
-                ))}
+              <div className="h-80">
+                <ResponsiveContainer width="100%" height="100%">
+                  <AreaChart
+                    data={dailyViews.map(d => ({
+                      ...d,
+                      date: new Date(d.date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }),
+                      uniqueVisitors: Math.floor(d.views * 0.7) // Simulated unique visitors
+                    }))}
+                    margin={{ top: 10, right: 30, left: 0, bottom: 0 }}
+                  >
+                    <defs>
+                      <linearGradient id="colorViews" x1="0" y1="0" x2="0" y2="1">
+                        <stop offset="5%" stopColor="#3B82F6" stopOpacity={0.3}/>
+                        <stop offset="95%" stopColor="#3B82F6" stopOpacity={0}/>
+                      </linearGradient>
+                      <linearGradient id="colorVisitors" x1="0" y1="0" x2="0" y2="1">
+                        <stop offset="5%" stopColor="#10B981" stopOpacity={0.3}/>
+                        <stop offset="95%" stopColor="#10B981" stopOpacity={0}/>
+                      </linearGradient>
+                    </defs>
+                    <CartesianGrid strokeDasharray="3 3" stroke="#E5E7EB" />
+                    <XAxis 
+                      dataKey="date" 
+                      axisLine={false}
+                      tickLine={false}
+                      tick={{ fill: '#6B7280', fontSize: 12 }}
+                    />
+                    <YAxis 
+                      axisLine={false}
+                      tickLine={false}
+                      tick={{ fill: '#6B7280', fontSize: 12 }}
+                    />
+                    <Tooltip
+                      contentStyle={{
+                        backgroundColor: '#1F2937',
+                        border: 'none',
+                        borderRadius: '8px',
+                        color: '#fff'
+                      }}
+                      labelStyle={{ color: '#9CA3AF' }}
+                      itemStyle={{ color: '#fff' }}
+                    />
+                    <Legend />
+                    <Area
+                      type="monotone"
+                      dataKey="views"
+                      name="Views"
+                      stroke="#3B82F6"
+                      strokeWidth={2}
+                      fillOpacity={1}
+                      fill="url(#colorViews)"
+                      dot={{ fill: '#3B82F6', strokeWidth: 2, r: 4 }}
+                      activeDot={{ r: 6, stroke: '#fff', strokeWidth: 2 }}
+                    />
+                    <Area
+                      type="monotone"
+                      dataKey="uniqueVisitors"
+                      name="Unique Visitors"
+                      stroke="#10B981"
+                      strokeWidth={2}
+                      fillOpacity={1}
+                      fill="url(#colorVisitors)"
+                      dot={{ fill: '#10B981', strokeWidth: 2, r: 4 }}
+                      activeDot={{ r: 6, stroke: '#fff', strokeWidth: 2 }}
+                    />
+                  </AreaChart>
+                </ResponsiveContainer>
               </div>
             ) : (
-              <div className="h-64 flex items-center justify-center text-gray-500">
+              <div className="h-80 flex items-center justify-center text-gray-500">
                 <div className="text-center">
                   <BarChart3 className="h-12 w-12 mx-auto mb-2 text-gray-300" />
                   <p>No view data available yet</p>

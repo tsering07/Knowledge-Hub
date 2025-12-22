@@ -15,10 +15,13 @@ const Admin = () => {
   const navigate = useNavigate();
   const [loading, setLoading] = useState(true);
   const [users, setUsers] = useState([]);
+  const [articles, setArticles] = useState([]);
   const [stats, setStats] = useState(null);
   const [activeTab, setActiveTab] = useState('overview');
   const [searchQuery, setSearchQuery] = useState('');
+  const [articleSearchQuery, setArticleSearchQuery] = useState('');
   const [roleFilter, setRoleFilter] = useState('all');
+  const [articleStatusFilter, setArticleStatusFilter] = useState('all');
   const [editingUser, setEditingUser] = useState(null);
   const [refreshing, setRefreshing] = useState(false);
 
@@ -37,13 +40,15 @@ const Admin = () => {
       const token = localStorage.getItem('token');
       const headers = { Authorization: `Bearer ${token}` };
 
-      const [statsRes, usersRes] = await Promise.all([
+      const [statsRes, usersRes, articlesRes] = await Promise.all([
         axios.get('http://localhost:5000/api/admin/stats', { headers }),
-        axios.get('http://localhost:5000/api/admin/users', { headers })
+        axios.get('http://localhost:5000/api/admin/users', { headers }),
+        axios.get('http://localhost:5000/api/admin/articles', { headers })
       ]);
 
       setStats(statsRes.data);
       setUsers(usersRes.data);
+      setArticles(articlesRes.data || []);
     } catch (error) {
       console.error('Failed to fetch admin data:', error);
       if (error.response?.status === 403) {
@@ -85,11 +90,48 @@ const Admin = () => {
     }
   };
 
+  const handleDeleteArticle = async (articleId, title) => {
+    if (!window.confirm(`Are you sure you want to delete article "${title}"? This action cannot be undone.`)) {
+      return;
+    }
+    try {
+      const token = localStorage.getItem('token');
+      await axios.delete(`http://localhost:5000/api/admin/articles/${articleId}`, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      setArticles(articles.filter(a => a._id !== articleId));
+    } catch (error) {
+      alert(error.response?.data?.message || 'Failed to delete article');
+    }
+  };
+
+  const handleToggleArticleStatus = async (articleId, currentStatus) => {
+    const newStatus = currentStatus === 'published' ? 'draft' : 'published';
+    try {
+      const token = localStorage.getItem('token');
+      await axios.put(
+        `http://localhost:5000/api/admin/articles/${articleId}/status`,
+        { status: newStatus },
+        { headers: { Authorization: `Bearer ${token}` } }
+      );
+      setArticles(articles.map(a => a._id === articleId ? { ...a, status: newStatus } : a));
+    } catch (error) {
+      alert(error.response?.data?.message || 'Failed to update article status');
+    }
+  };
+
   const filteredUsers = users.filter(u => {
     const matchesSearch = u.username.toLowerCase().includes(searchQuery.toLowerCase()) ||
                          u.email.toLowerCase().includes(searchQuery.toLowerCase());
     const matchesRole = roleFilter === 'all' || u.role === roleFilter;
     return matchesSearch && matchesRole;
+  });
+
+  const filteredArticles = articles.filter(a => {
+    const matchesSearch = a.title?.toLowerCase().includes(articleSearchQuery.toLowerCase()) ||
+                         a.author?.username?.toLowerCase().includes(articleSearchQuery.toLowerCase());
+    const matchesStatus = articleStatusFilter === 'all' || a.status === articleStatusFilter;
+    return matchesSearch && matchesStatus;
   });
 
   const sidebarLinks = [
@@ -218,23 +260,38 @@ const Admin = () => {
       {/* Main Content */}
       <main className="flex-1 ml-56 p-8">
         <div className="max-w-6xl mx-auto">
-          {/* Header */}
-          <div className="flex items-center justify-between mb-8">
-            <div>
-              <h1 className="text-2xl font-bold text-gray-900 flex items-center gap-3">
-                <Shield className="h-7 w-7 text-blue-600" />
-                Admin Panel
-              </h1>
-              <p className="text-gray-500 mt-1">Manage users, content, and platform settings</p>
+          {/* Header with Image */}
+          <div className="card overflow-hidden mb-8 animate-fade-in-up">
+            <div className="h-28 bg-gradient-to-r from-red-500 via-rose-500 to-pink-500 relative">
+              <div className="absolute inset-0">
+                <div className="absolute top-4 left-10 w-12 h-12 bg-white/10 rounded-full animate-float"></div>
+                <div className="absolute bottom-4 right-20 w-16 h-16 bg-white/10 rounded-full animate-float animation-delay-200"></div>
+              </div>
+              <img 
+                src="https://images.unsplash.com/photo-1551434678-e076c223a692?w=1200&h=150&fit=crop"
+                alt="Admin banner"
+                className="w-full h-full object-cover opacity-30"
+              />
             </div>
-            <button
-              onClick={() => fetchData(true)}
-              disabled={refreshing}
-              className="btn btn-outline flex items-center gap-2"
-            >
-              <RefreshCw className={`h-4 w-4 ${refreshing ? 'animate-spin' : ''}`} />
-              Refresh
-            </button>
+            <div className="p-6 -mt-8 relative flex items-end justify-between">
+              <div className="flex items-end gap-4">
+                <div className="w-16 h-16 bg-gradient-to-br from-red-500 to-pink-600 rounded-xl flex items-center justify-center ring-4 ring-white shadow-lg animate-scale-in">
+                  <Shield className="h-8 w-8 text-white" />
+                </div>
+                <div className="mb-2 animate-fade-in-up animation-delay-100">
+                  <h1 className="text-2xl font-bold text-gray-900">Admin Panel</h1>
+                  <p className="text-gray-500">Manage users, content, and platform settings</p>
+                </div>
+              </div>
+              <button
+                onClick={() => fetchData(true)}
+                disabled={refreshing}
+                className="btn btn-outline flex items-center gap-2 hover-lift animate-fade-in-right"
+              >
+                <RefreshCw className={`h-4 w-4 ${refreshing ? 'animate-spin' : ''}`} />
+                Refresh
+              </button>
+            </div>
           </div>
 
           {/* Tabs */}
@@ -243,11 +300,12 @@ const Admin = () => {
               {[
                 { id: 'overview', label: 'Overview' },
                 { id: 'users', label: 'User Management' },
-              ].map((tab) => (
+                { id: 'articles', label: 'Article Management' },
+              ].map((tab, index) => (
                 <button
                   key={tab.id}
                   onClick={() => setActiveTab(tab.id)}
-                  className={`py-3 text-sm font-medium border-b-2 transition-colors ${
+                  className={`py-3 text-sm font-medium border-b-2 transition-all animate-fade-in-up animation-delay-${index * 100} ${
                     activeTab === tab.id
                       ? 'border-blue-500 text-blue-600'
                       : 'border-transparent text-gray-500 hover:text-gray-700'
@@ -263,9 +321,9 @@ const Admin = () => {
             <>
               {/* Stats Cards */}
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
-                <div className="card p-5">
+                <div className="card p-5 hover-lift animate-fade-in-up">
                   <div className="flex items-center gap-4">
-                    <div className="w-12 h-12 bg-blue-100 rounded-xl flex items-center justify-center">
+                    <div className="w-12 h-12 bg-gradient-to-br from-blue-100 to-blue-200 rounded-xl flex items-center justify-center">
                       <Users className="h-6 w-6 text-blue-600" />
                     </div>
                     <div>
@@ -275,9 +333,9 @@ const Admin = () => {
                   </div>
                 </div>
 
-                <div className="card p-5">
+                <div className="card p-5 hover-lift animate-fade-in-up animation-delay-100">
                   <div className="flex items-center gap-4">
-                    <div className="w-12 h-12 bg-green-100 rounded-xl flex items-center justify-center">
+                    <div className="w-12 h-12 bg-gradient-to-br from-green-100 to-green-200 rounded-xl flex items-center justify-center">
                       <FileText className="h-6 w-6 text-green-600" />
                     </div>
                     <div>
@@ -287,9 +345,9 @@ const Admin = () => {
                   </div>
                 </div>
 
-                <div className="card p-5">
+                <div className="card p-5 hover-lift animate-fade-in-up animation-delay-200">
                   <div className="flex items-center gap-4">
-                    <div className="w-12 h-12 bg-purple-100 rounded-xl flex items-center justify-center">
+                    <div className="w-12 h-12 bg-gradient-to-br from-purple-100 to-purple-200 rounded-xl flex items-center justify-center">
                       <MessageSquare className="h-6 w-6 text-purple-600" />
                     </div>
                     <div>
@@ -299,9 +357,9 @@ const Admin = () => {
                   </div>
                 </div>
 
-                <div className="card p-5">
+                <div className="card p-5 hover-lift animate-fade-in-up animation-delay-300">
                   <div className="flex items-center gap-4">
-                    <div className="w-12 h-12 bg-orange-100 rounded-xl flex items-center justify-center">
+                    <div className="w-12 h-12 bg-gradient-to-br from-orange-100 to-orange-200 rounded-xl flex items-center justify-center">
                       <TrendingUp className="h-6 w-6 text-orange-600" />
                     </div>
                     <div>
@@ -370,7 +428,7 @@ const Admin = () => {
               </div>
 
               {/* Recent Activity */}
-              <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
                 <div className="card p-6">
                   <h3 className="text-lg font-semibold text-gray-900 mb-4">Recent Users</h3>
                   <div className="space-y-3">
@@ -396,7 +454,7 @@ const Admin = () => {
                 <div className="card p-6">
                   <h3 className="text-lg font-semibold text-gray-900 mb-4">Recent Articles</h3>
                   <div className="space-y-3">
-                    {stats.recentArticles.map((a) => (
+                    {stats.recentArticles?.slice(0, 5).map((a) => (
                       <Link
                         key={a._id}
                         to={`/wiki/${a.slug}`}
@@ -416,6 +474,112 @@ const Admin = () => {
                         </span>
                       </Link>
                     ))}
+                  </div>
+                </div>
+              </div>
+
+              {/* Contributors and Viewers Lists */}
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
+                <div className="card p-6">
+                  <div className="flex items-center justify-between mb-4">
+                    <h3 className="text-lg font-semibold text-gray-900">Contributors ({stats.contributorsList?.length || 0})</h3>
+                    <PenTool className="h-5 w-5 text-blue-500" />
+                  </div>
+                  <div className="space-y-3 max-h-64 overflow-y-auto">
+                    {stats.contributorsList?.length > 0 ? stats.contributorsList.map((u) => (
+                      <div key={u._id} className="flex items-center justify-between p-3 bg-blue-50 rounded-lg">
+                        <div className="flex items-center gap-3">
+                          <div className="w-10 h-10 bg-blue-200 rounded-full flex items-center justify-center">
+                            <span className="text-sm font-medium text-blue-700">
+                              {u.username.slice(0, 2).toUpperCase()}
+                            </span>
+                          </div>
+                          <div>
+                            <p className="text-sm font-medium text-gray-900">{u.username}</p>
+                            <p className="text-xs text-gray-500">{u.email}</p>
+                          </div>
+                        </div>
+                        <span className="text-xs text-gray-400">
+                          {new Date(u.createdAt).toLocaleDateString()}
+                        </span>
+                      </div>
+                    )) : (
+                      <p className="text-sm text-gray-500 text-center py-4">No contributors yet</p>
+                    )}
+                  </div>
+                </div>
+
+                <div className="card p-6">
+                  <div className="flex items-center justify-between mb-4">
+                    <h3 className="text-lg font-semibold text-gray-900">Viewers ({stats.viewersList?.length || 0})</h3>
+                    <Eye className="h-5 w-5 text-gray-500" />
+                  </div>
+                  <div className="space-y-3 max-h-64 overflow-y-auto">
+                    {stats.viewersList?.length > 0 ? stats.viewersList.map((u) => (
+                      <div key={u._id} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
+                        <div className="flex items-center gap-3">
+                          <div className="w-10 h-10 bg-gray-200 rounded-full flex items-center justify-center">
+                            <span className="text-sm font-medium text-gray-600">
+                              {u.username.slice(0, 2).toUpperCase()}
+                            </span>
+                          </div>
+                          <div>
+                            <p className="text-sm font-medium text-gray-900">{u.username}</p>
+                            <p className="text-xs text-gray-500">{u.email}</p>
+                          </div>
+                        </div>
+                        <span className="text-xs text-gray-400">
+                          {new Date(u.createdAt).toLocaleDateString()}
+                        </span>
+                      </div>
+                    )) : (
+                      <p className="text-sm text-gray-500 text-center py-4">No viewers yet</p>
+                    )}
+                  </div>
+                </div>
+              </div>
+
+              {/* Recently Edited Articles */}
+              <div className="card p-6 mb-8">
+                <div className="flex items-center justify-between mb-4">
+                  <h3 className="text-lg font-semibold text-gray-900">Recently Edited Articles</h3>
+                  <Edit className="h-5 w-5 text-purple-500" />
+                </div>
+                <div className="space-y-3">
+                  {stats.recentlyEditedArticles?.length > 0 ? stats.recentlyEditedArticles.slice(0, 5).map((a) => (
+                    <Link
+                      key={a._id}
+                      to={`/wiki/${a.slug}`}
+                      className="flex items-center justify-between p-3 bg-purple-50 rounded-lg hover:bg-purple-100 transition-colors"
+                    >
+                      <div className="flex items-center gap-3">
+                        <div className="w-10 h-10 bg-purple-200 rounded-lg flex items-center justify-center">
+                          <Edit className="h-5 w-5 text-purple-600" />
+                        </div>
+                        <div>
+                          <p className="text-sm font-medium text-gray-900 line-clamp-1">{a.title}</p>
+                          <p className="text-xs text-gray-500">by {a.author?.username || 'Unknown'} • {a.versions?.length || 0} edits</p>
+                        </div>
+                      </div>
+                      <span className="text-xs text-gray-400">
+                        {new Date(a.updatedAt).toLocaleDateString()}
+                      </span>
+                    </Link>
+                  )) : (
+                    <p className="text-sm text-gray-500 text-center py-4">No edited articles yet</p>
+                  )}
+                </div>
+              </div>
+
+              {/* Total Views Card */}
+              <div className="card p-6">
+                <div className="flex items-center gap-4">
+                  <div className="w-16 h-16 bg-gradient-to-br from-indigo-100 to-indigo-200 rounded-xl flex items-center justify-center">
+                    <Eye className="h-8 w-8 text-indigo-600" />
+                  </div>
+                  <div>
+                    <p className="text-3xl font-bold text-gray-900">{stats.stats.totalViews || 0}</p>
+                    <p className="text-sm text-gray-500">Total Article Views</p>
                   </div>
                 </div>
               </div>
@@ -596,6 +760,182 @@ const Admin = () => {
                       <li>• Change user roles</li>
                       <li>• Delete users</li>
                     </ul>
+                  </div>
+                </div>
+              </div>
+            </>
+          )}
+
+          {activeTab === 'articles' && (
+            <>
+              {/* Search and Filters */}
+              <div className="card p-4 mb-6">
+                <div className="flex flex-col sm:flex-row gap-4">
+                  <div className="relative flex-1">
+                    <Search className="absolute left-4 top-1/2 -translate-y-1/2 h-5 w-5 text-gray-400" />
+                    <input
+                      type="text"
+                      placeholder="Search articles by title or author..."
+                      className="input pl-12"
+                      value={articleSearchQuery}
+                      onChange={(e) => setArticleSearchQuery(e.target.value)}
+                    />
+                  </div>
+                  <select
+                    className="input w-auto"
+                    value={articleStatusFilter}
+                    onChange={(e) => setArticleStatusFilter(e.target.value)}
+                  >
+                    <option value="all">All Status</option>
+                    <option value="published">Published</option>
+                    <option value="draft">Draft</option>
+                  </select>
+                </div>
+              </div>
+
+              {/* Articles Table */}
+              <div className="card overflow-hidden">
+                <table className="w-full">
+                  <thead className="bg-gray-50 border-b border-gray-200">
+                    <tr>
+                      <th className="text-left text-xs font-medium text-gray-500 uppercase tracking-wider px-6 py-4">Article</th>
+                      <th className="text-left text-xs font-medium text-gray-500 uppercase tracking-wider px-6 py-4">Author</th>
+                      <th className="text-left text-xs font-medium text-gray-500 uppercase tracking-wider px-6 py-4">Category</th>
+                      <th className="text-left text-xs font-medium text-gray-500 uppercase tracking-wider px-6 py-4">Status</th>
+                      <th className="text-left text-xs font-medium text-gray-500 uppercase tracking-wider px-6 py-4">Views</th>
+                      <th className="text-left text-xs font-medium text-gray-500 uppercase tracking-wider px-6 py-4">Created</th>
+                      <th className="text-right text-xs font-medium text-gray-500 uppercase tracking-wider px-6 py-4">Actions</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-gray-200">
+                    {filteredArticles.map((article) => (
+                      <tr key={article._id} className="hover:bg-gray-50">
+                        <td className="px-6 py-4">
+                          <div className="flex items-center gap-3">
+                            <div className="w-10 h-10 bg-green-100 rounded-lg flex items-center justify-center">
+                              <FileText className="h-5 w-5 text-green-600" />
+                            </div>
+                            <div className="max-w-xs">
+                              <p className="font-medium text-gray-900 truncate">{article.title || 'Untitled'}</p>
+                              <p className="text-xs text-gray-500 truncate">/wiki/{article.slug}</p>
+                            </div>
+                          </div>
+                        </td>
+                        <td className="px-6 py-4">
+                          <div className="flex items-center gap-2">
+                            <div className="w-6 h-6 bg-blue-100 rounded-full flex items-center justify-center">
+                              <span className="text-xs font-medium text-blue-600">
+                                {article.author?.username?.charAt(0).toUpperCase() || '?'}
+                              </span>
+                            </div>
+                            <span className="text-sm text-gray-700">{article.author?.username || 'Unknown'}</span>
+                          </div>
+                        </td>
+                        <td className="px-6 py-4">
+                          <span className="text-sm text-gray-500">{article.category?.name || 'Uncategorized'}</span>
+                        </td>
+                        <td className="px-6 py-4">
+                          <span className={`tag ${article.status === 'published' ? 'tag-green' : 'tag-yellow'}`}>
+                            {article.status || 'draft'}
+                          </span>
+                        </td>
+                        <td className="px-6 py-4">
+                          <div className="flex items-center gap-1 text-sm text-gray-500">
+                            <Eye className="h-4 w-4" />
+                            {article.views || 0}
+                          </div>
+                        </td>
+                        <td className="px-6 py-4 text-gray-500 text-sm">
+                          {new Date(article.createdAt).toLocaleDateString()}
+                        </td>
+                        <td className="px-6 py-4 text-right">
+                          <div className="flex items-center justify-end gap-1">
+                            <Link
+                              to={`/wiki/${article.slug}`}
+                              className="p-2 text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
+                              title="View Article"
+                            >
+                              <Eye className="h-4 w-4" />
+                            </Link>
+                            <Link
+                              to={`/editor/${article._id}`}
+                              className="p-2 text-gray-400 hover:text-green-600 hover:bg-green-50 rounded-lg transition-colors"
+                              title="Edit Article"
+                            >
+                              <Edit className="h-4 w-4" />
+                            </Link>
+                            <button
+                              onClick={() => handleToggleArticleStatus(article._id, article.status)}
+                              className={`p-2 rounded-lg transition-colors ${
+                                article.status === 'published'
+                                  ? 'text-gray-400 hover:text-yellow-600 hover:bg-yellow-50'
+                                  : 'text-gray-400 hover:text-green-600 hover:bg-green-50'
+                              }`}
+                              title={article.status === 'published' ? 'Unpublish' : 'Publish'}
+                            >
+                              {article.status === 'published' ? <X className="h-4 w-4" /> : <Check className="h-4 w-4" />}
+                            </button>
+                            <button
+                              onClick={() => handleDeleteArticle(article._id, article.title)}
+                              className="p-2 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors"
+                              title="Delete Article"
+                            >
+                              <Trash2 className="h-4 w-4" />
+                            </button>
+                          </div>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+
+                {filteredArticles.length === 0 && (
+                  <div className="text-center py-12">
+                    <FileText className="h-12 w-12 text-gray-300 mx-auto mb-4" />
+                    <p className="text-gray-500">No articles found</p>
+                  </div>
+                )}
+              </div>
+
+              {/* Article Stats Summary */}
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mt-6">
+                <div className="card p-5 bg-gradient-to-br from-green-50 to-green-100">
+                  <div className="flex items-center gap-3">
+                    <div className="w-10 h-10 bg-green-500 rounded-lg flex items-center justify-center">
+                      <Check className="h-5 w-5 text-white" />
+                    </div>
+                    <div>
+                      <p className="text-2xl font-bold text-green-700">
+                        {articles.filter(a => a.status === 'published').length}
+                      </p>
+                      <p className="text-sm text-green-600">Published</p>
+                    </div>
+                  </div>
+                </div>
+                <div className="card p-5 bg-gradient-to-br from-yellow-50 to-yellow-100">
+                  <div className="flex items-center gap-3">
+                    <div className="w-10 h-10 bg-yellow-500 rounded-lg flex items-center justify-center">
+                      <Edit className="h-5 w-5 text-white" />
+                    </div>
+                    <div>
+                      <p className="text-2xl font-bold text-yellow-700">
+                        {articles.filter(a => a.status === 'draft').length}
+                      </p>
+                      <p className="text-sm text-yellow-600">Drafts</p>
+                    </div>
+                  </div>
+                </div>
+                <div className="card p-5 bg-gradient-to-br from-blue-50 to-blue-100">
+                  <div className="flex items-center gap-3">
+                    <div className="w-10 h-10 bg-blue-500 rounded-lg flex items-center justify-center">
+                      <Eye className="h-5 w-5 text-white" />
+                    </div>
+                    <div>
+                      <p className="text-2xl font-bold text-blue-700">
+                        {articles.reduce((sum, a) => sum + (a.views || 0), 0)}
+                      </p>
+                      <p className="text-sm text-blue-600">Total Views</p>
+                    </div>
                   </div>
                 </div>
               </div>

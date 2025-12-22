@@ -25,6 +25,18 @@ const userSchema = new mongoose.Schema({
         type: mongoose.Schema.Types.ObjectId,
         ref: 'Article',
     }],
+    // Profile fields
+    profilePhoto: {
+        type: String,
+        default: null,
+    },
+    firstName: String,
+    lastName: String,
+    jobTitle: String,
+    department: String,
+    bio: String,
+    phone: String,
+    location: String,
 }, {
     timestamps: true,
 });

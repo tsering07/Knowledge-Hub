@@ -1,13 +1,14 @@
 import { useState, useContext } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import AuthContext from '../context/AuthContext';
-import { Mail, Lock, User, BookOpen, ArrowRight, Users, FileText, HelpCircle, CheckCircle } from 'lucide-react';
+import { Mail, Lock, User, BookOpen, ArrowRight, Users, FileText, HelpCircle, CheckCircle, Eye, Edit3 } from 'lucide-react';
 
 const Register = () => {
   const [username, setUsername] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
+  const [role, setRole] = useState('viewer');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
   const { register } = useContext(AuthContext);
@@ -28,7 +29,7 @@ const Register = () => {
     }
     
     setLoading(true);
-    const result = await register(username, email, password);
+    const result = await register(username, email, password, role);
     setLoading(false);
     
     if (result.success) {
@@ -45,37 +46,78 @@ const Register = () => {
     'Collaborate with your team'
   ];
 
+  const roleOptions = [
+    {
+      id: 'viewer',
+      title: 'Viewer',
+      description: 'Read articles and bookmark content',
+      icon: Eye,
+      features: ['Read all articles', 'Bookmark favorites', 'Ask questions']
+    },
+    {
+      id: 'contributor',
+      title: 'Contributor',
+      description: 'Create and publish your own articles',
+      icon: Edit3,
+      features: ['All Viewer features', 'Write articles', 'Edit your articles']
+    }
+  ];
+
   return (
     <div className="min-h-screen flex">
       {/* Left Side - Branding */}
-      <div className="hidden lg:flex lg:w-1/2 bg-gradient-to-b from-blue-500 to-blue-600 relative overflow-hidden">
-        <div className="absolute inset-0 opacity-10">
-          <div className="absolute top-20 left-20 w-32 h-32 bg-white rounded-full"></div>
-          <div className="absolute bottom-40 right-20 w-48 h-48 bg-white rounded-full"></div>
-          <div className="absolute top-1/2 left-1/3 w-24 h-24 bg-white rounded-full"></div>
+      <div className="hidden lg:flex lg:w-1/2 bg-gradient-to-br from-indigo-500 via-purple-600 to-pink-500 relative overflow-hidden">
+        {/* Animated Background Elements */}
+        <div className="absolute inset-0">
+          <div className="absolute top-20 left-20 w-32 h-32 bg-white/10 rounded-full animate-float"></div>
+          <div className="absolute bottom-40 right-20 w-48 h-48 bg-white/10 rounded-full animate-float animation-delay-200"></div>
+          <div className="absolute top-1/2 left-1/3 w-24 h-24 bg-white/10 rounded-full animate-float animation-delay-400"></div>
+          <div className="absolute top-1/4 right-1/3 w-16 h-16 bg-white/5 rounded-full animate-bounce-slow"></div>
+          <div className="absolute bottom-1/3 left-1/4 w-20 h-20 bg-white/5 rounded-full animate-bounce-slow animation-delay-300"></div>
         </div>
+
+        {/* Decorative Shapes */}
+        <div className="absolute top-10 right-10 w-40 h-40 border-4 border-white/10 rounded-full animate-spin" style={{ animationDuration: '20s' }}></div>
+        <div className="absolute bottom-10 left-10 w-32 h-32 border-4 border-white/10 rounded-xl rotate-45 animate-pulse"></div>
         
         <div className="relative z-10 flex flex-col justify-center px-16 text-white">
-          <div className="flex items-center gap-3 mb-8">
-            <div className="p-3 bg-white/20 rounded-xl backdrop-blur-sm">
+          <div className="flex items-center gap-3 mb-8 animate-fade-in-down">
+            <div className="p-3 bg-white/20 rounded-xl backdrop-blur-sm animate-pulse-glow">
               <BookOpen className="h-8 w-8" />
             </div>
-            <span className="text-2xl font-bold">Knowledge Base</span>
+            <span className="text-2xl font-bold">Knowledge Hub</span>
           </div>
           
-          <h1 className="text-4xl font-bold mb-4 leading-tight">
+          <h1 className="text-4xl font-bold mb-4 leading-tight animate-fade-in-up">
             Join Your Team's
-            <span className="block">Knowledge Community</span>
+            <span className="block bg-gradient-to-r from-white to-pink-200 bg-clip-text text-transparent">Knowledge Community</span>
           </h1>
           
-          <p className="text-blue-100 text-lg mb-8 leading-relaxed">
+          <p className="text-purple-100 text-lg mb-8 leading-relaxed animate-fade-in-up animation-delay-100">
             Create an account to start contributing and accessing your team's shared knowledge.
           </p>
+
+          {/* Illustration */}
+          <div className="relative mb-8 animate-fade-in-up animation-delay-200">
+            <img 
+              src="https://images.unsplash.com/photo-1552664730-d307ca884978?w=500&h=300&fit=crop" 
+              alt="Team working together"
+              className="rounded-2xl shadow-2xl border-4 border-white/20 hover-lift"
+            />
+            <div className="absolute -top-4 -left-4 bg-white rounded-xl p-3 shadow-lg animate-bounce-slow">
+              <div className="flex items-center gap-2">
+                <div className="w-8 h-8 bg-purple-500 rounded-full flex items-center justify-center">
+                  <Users className="h-5 w-5 text-white" />
+                </div>
+                <span className="text-gray-800 font-medium text-sm">Join 1000+ users</span>
+              </div>
+            </div>
+          </div>
           
           <div className="space-y-4">
             {features.map((feature, i) => (
-              <div key={i} className="flex items-center gap-3 text-blue-100">
-                <div className="w-6 h-6 bg-white/20 rounded-full flex items-center justify-center">
+              <div key={i} className={`flex items-center gap-3 text-purple-100 animate-fade-in-left animation-delay-${(i + 3) * 100}`}>
+                <div className="w-6 h-6 bg-white/20 rounded-full flex items-center justify-center hover-scale">
                   <CheckCircle className="h-4 w-4" />
                 </div>
                 <span>{feature}</span>
@@ -167,6 +209,40 @@ const Register = () => {
                     onChange={(e) => setConfirmPassword(e.target.value)}
                   />
                 </div>
+              </div>
+
+              {/* Role Selection */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-3">I want to join as</label>
+                <div className="grid grid-cols-2 gap-3">
+                  {roleOptions.map((option) => (
+                    <button
+                      key={option.id}
+                      type="button"
+                      onClick={() => setRole(option.id)}
+                      className={`p-4 rounded-xl border-2 text-left transition-all duration-200 ${
+                        role === option.id
+                          ? 'border-blue-500 bg-blue-50 ring-2 ring-blue-500/20'
+                          : 'border-gray-200 hover:border-gray-300 hover:bg-gray-50'
+                      }`}
+                    >
+                      <div className="flex items-center gap-2 mb-2">
+                        <div className={`w-8 h-8 rounded-lg flex items-center justify-center ${
+                          role === option.id ? 'bg-blue-500 text-white' : 'bg-gray-100 text-gray-500'
+                        }`}>
+                          <option.icon className="h-4 w-4" />
+                        </div>
+                        <span className={`font-semibold ${role === option.id ? 'text-blue-700' : 'text-gray-700'}`}>
+                          {option.title}
+                        </span>
+                      </div>
+                      <p className="text-xs text-gray-500">{option.description}</p>
+                    </button>
+                  ))}
+                </div>
+                <p className="text-xs text-gray-400 mt-2">
+                  * Admin can upgrade your role later if needed
+                </p>
               </div>
               
               <div className="flex items-start">

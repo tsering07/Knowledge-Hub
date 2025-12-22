@@ -18,6 +18,11 @@ const registerUser = async (req, res) => {
         return res.status(400).json({ message: 'Please provide username, email and password' });
     }
 
+    // Only allow viewer or contributor roles during registration
+    // Admin and Editor roles can only be assigned by an admin
+    const allowedRoles = ['viewer', 'contributor'];
+    const assignedRole = allowedRoles.includes(role) ? role : 'viewer';
+
     try {
         const userExists = await User.findOne({ $or: [{ email }, { username }] });
 
@@ -29,7 +34,7 @@ const registerUser = async (req, res) => {
             username,
             email,
             password,
-            role: role || 'contributor', // Default to contributor so they can write
+            role: assignedRole,
         });
 
         if (user) {
@@ -64,6 +69,7 @@ const loginUser = async (req, res) => {
                 username: user.username,
                 email: user.email,
                 role: user.role,
+                profilePhoto: user.profilePhoto,
                 token: generateToken(user._id),
             });
         } else {
@@ -86,6 +92,9 @@ const getMe = async (req, res) => {
             username: user.username,
             email: user.email,
             role: user.role,
+            profilePhoto: user.profilePhoto,
+            firstName: user.firstName,
+            lastName: user.lastName,
             bookmarks: user.bookmarks,
         });
     } else {

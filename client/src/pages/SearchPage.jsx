@@ -73,16 +73,27 @@ const SearchPage = () => {
 
   return (
     <div className="min-h-screen bg-slate-50">
-      {/* Header with Search */}
-      <div className="bg-white border-b border-gray-200 sticky top-14 z-30">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 py-4">
-          <form onSubmit={handleSearch} className="max-w-2xl">
+      {/* Hero Header */}
+      <div className="bg-gradient-to-r from-cyan-500 via-blue-500 to-indigo-500 relative overflow-hidden">
+        {/* Animated Background */}
+        <div className="absolute inset-0">
+          <div className="absolute top-5 left-20 w-16 h-16 bg-white/10 rounded-full animate-float"></div>
+          <div className="absolute bottom-5 right-10 w-24 h-24 bg-white/10 rounded-full animate-float animation-delay-200"></div>
+          <div className="absolute top-1/2 right-1/3 w-12 h-12 bg-white/5 rounded-full animate-bounce-slow"></div>
+        </div>
+
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 py-8 relative z-10">
+          <div className="text-center mb-6 animate-fade-in-down">
+            <h1 className="text-3xl font-bold text-white mb-2">Search Knowledge Base</h1>
+            <p className="text-blue-100">Find articles, guides, and documentation</p>
+          </div>
+          <form onSubmit={handleSearch} className="max-w-2xl mx-auto animate-fade-in-up animation-delay-100">
             <div className="relative">
               <Search className="absolute left-4 top-1/2 -translate-y-1/2 h-5 w-5 text-gray-400" />
               <input
                 type="text"
                 placeholder="Search for articles, guides, and docs..."
-                className="w-full pl-12 pr-4 py-3 bg-gray-50 border border-gray-200 rounded-xl outline-none focus:bg-white focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 transition-all"
+                className="w-full pl-12 pr-4 py-4 bg-white border-0 rounded-xl shadow-lg outline-none focus:ring-4 focus:ring-white/30 transition-all"
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
               />
@@ -95,8 +106,21 @@ const SearchPage = () => {
         <div className="flex gap-8">
           {/* Filters Sidebar */}
           <aside className="hidden lg:block w-64 shrink-0">
-            <div className="sticky top-36">
-              <div className="card p-5">
+            <div className="sticky top-24 space-y-6">
+              {/* Search Tips Card */}
+              <div className="card overflow-hidden animate-fade-in-left">
+                <img 
+                  src="https://images.unsplash.com/photo-1486312338219-ce68d2c6f44d?w=300&h=120&fit=crop"
+                  alt="Search tips"
+                  className="w-full h-24 object-cover"
+                />
+                <div className="p-4">
+                  <h3 className="font-semibold text-gray-900 mb-1">Search Tips</h3>
+                  <p className="text-xs text-gray-500">Use quotes for exact phrases</p>
+                </div>
+              </div>
+
+              <div className="card p-5 animate-fade-in-left animation-delay-100">
                 <div className="flex items-center justify-between mb-4">
                   <h3 className="font-semibold text-gray-900">Filters</h3>
                   <button
@@ -114,7 +138,7 @@ const SearchPage = () => {
                     {contentTypes.map((type) => (
                       <label
                         key={type.id}
-                        className="flex items-center gap-3 cursor-pointer"
+                        className="flex items-center gap-3 cursor-pointer hover:bg-gray-50 p-2 rounded-lg transition-colors"
                       >
                         <input
                           type="radio"
@@ -150,9 +174,9 @@ const SearchPage = () => {
                 <div className="mb-6">
                   <h4 className="text-sm font-medium text-gray-700 mb-3">Tags</h4>
                   <div className="flex flex-wrap gap-2">
-                    <span className="tag tag-blue cursor-pointer">Project Alpha</span>
-                    <span className="tag tag-gray cursor-pointer">deployment</span>
-                    <span className="tag tag-gray cursor-pointer">#engineering</span>
+                    <span className="tag tag-blue cursor-pointer hover-scale">Project Alpha</span>
+                    <span className="tag tag-gray cursor-pointer hover-scale">deployment</span>
+                    <span className="tag tag-gray cursor-pointer hover-scale">#engineering</span>
                   </div>
                 </div>
 
@@ -169,10 +193,12 @@ const SearchPage = () => {
                       onChange={(e) => setFilters({ ...filters, author: e.target.value })}
                     />
                   </div>
-                  <div className="mt-3 flex items-center gap-2">
-                    <div className="w-8 h-8 bg-blue-100 rounded-full flex items-center justify-center text-blue-600 text-sm font-medium">
-                      SJ
-                    </div>
+                  <div className="mt-3 flex items-center gap-2 hover-lift p-2 rounded-lg cursor-pointer">
+                    <img 
+                      src="https://i.pravatar.cc/32?img=5"
+                      alt="Sarah Jenkins"
+                      className="w-8 h-8 rounded-full"
+                    />
                     <span className="text-sm text-gray-600">Sarah Jenkins</span>
                   </div>
                 </div>
@@ -183,7 +209,7 @@ const SearchPage = () => {
           {/* Results */}
           <main className="flex-1 min-w-0">
             {/* Results Header */}
-            <div className="flex items-center justify-between mb-6">
+            <div className="flex items-center justify-between mb-6 animate-fade-in-up">
               <div>
                 <h1 className="text-xl font-bold text-gray-900">Search Results</h1>
                 <p className="text-sm text-gray-500">

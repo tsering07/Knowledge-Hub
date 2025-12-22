@@ -78,16 +78,33 @@ const QA = () => {
   return (
     <div className="min-h-screen bg-slate-50">
       {/* Header */}
-      <div className="bg-gradient-to-r from-blue-500 to-blue-600 text-white">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 py-12">
+      <div className="bg-gradient-to-r from-purple-600 via-violet-600 to-indigo-600 text-white relative overflow-hidden">
+        {/* Animated Background */}
+        <div className="absolute inset-0">
+          <div className="absolute top-10 left-20 w-24 h-24 bg-white/10 rounded-full animate-float"></div>
+          <div className="absolute bottom-10 right-10 w-32 h-32 bg-white/10 rounded-full animate-float animation-delay-200"></div>
+          <div className="absolute top-1/2 right-1/4 w-16 h-16 bg-white/5 rounded-full animate-bounce-slow"></div>
+          <div className="absolute bottom-1/3 left-1/3 w-20 h-20 bg-white/5 rounded-full animate-bounce-slow animation-delay-300"></div>
+        </div>
+
+        {/* Decorative Elements */}
+        <div className="absolute top-0 right-0 w-96 h-96 bg-gradient-to-bl from-pink-500/20 to-transparent rounded-full blur-3xl"></div>
+        <div className="absolute bottom-0 left-0 w-64 h-64 bg-gradient-to-tr from-blue-500/20 to-transparent rounded-full blur-3xl"></div>
+
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 py-12 relative z-10">
           <div className="flex items-center justify-between">
-            <div>
-              <h1 className="text-3xl font-bold mb-2">Questions & Answers</h1>
-              <p className="text-blue-100">Ask questions, share knowledge, help your team</p>
+            <div className="animate-fade-in-up">
+              <div className="flex items-center gap-3 mb-2">
+                <div className="p-2 bg-white/20 rounded-lg animate-pulse-glow">
+                  <MessageCircle className="h-6 w-6" />
+                </div>
+                <h1 className="text-3xl font-bold">Questions & Answers</h1>
+              </div>
+              <p className="text-purple-100">Ask questions, share knowledge, help your team succeed</p>
             </div>
             <button
               onClick={() => user ? setShowAskModal(true) : navigate('/login')}
-              className="btn bg-white text-blue-600 hover:bg-blue-50 flex items-center gap-2"
+              className="btn bg-white text-purple-600 hover:bg-purple-50 flex items-center gap-2 shadow-lg hover-lift animate-fade-in-right"
             >
               <Plus className="h-4 w-4" />
               Ask Question
@@ -95,16 +112,32 @@ const QA = () => {
           </div>
 
           {/* Search */}
-          <div className="mt-8 max-w-2xl">
+          <div className="mt-8 max-w-2xl animate-fade-in-up animation-delay-200">
             <div className="relative">
-              <Search className="absolute left-4 top-1/2 -translate-y-1/2 h-5 w-5 text-blue-300" />
+              <Search className="absolute left-4 top-1/2 -translate-y-1/2 h-5 w-5 text-purple-300" />
               <input
                 type="text"
                 placeholder="Search questions..."
-                className="w-full pl-12 pr-4 py-3 bg-white/10 backdrop-blur-sm border border-white/20 rounded-xl text-white placeholder-blue-200 outline-none focus:bg-white/20 focus:border-white/40 transition-all"
+                className="w-full pl-12 pr-4 py-3 bg-white/10 backdrop-blur-sm border border-white/20 rounded-xl text-white placeholder-purple-200 outline-none focus:bg-white/20 focus:border-white/40 transition-all"
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
               />
+            </div>
+          </div>
+
+          {/* Quick Stats Banner */}
+          <div className="mt-8 grid grid-cols-3 gap-4 max-w-lg animate-fade-in-up animation-delay-300">
+            <div className="bg-white/10 backdrop-blur-sm rounded-lg p-3 text-center">
+              <p className="text-2xl font-bold">{questions.length}</p>
+              <p className="text-xs text-purple-200">Questions</p>
+            </div>
+            <div className="bg-white/10 backdrop-blur-sm rounded-lg p-3 text-center">
+              <p className="text-2xl font-bold text-green-300">{questions.filter(q => q.answers.length > 0).length}</p>
+              <p className="text-xs text-purple-200">Answered</p>
+            </div>
+            <div className="bg-white/10 backdrop-blur-sm rounded-lg p-3 text-center">
+              <p className="text-2xl font-bold text-yellow-300">{questions.filter(q => q.solved).length}</p>
+              <p className="text-xs text-purple-200">Solved</p>
             </div>
           </div>
         </div>
@@ -115,55 +148,47 @@ const QA = () => {
           {/* Sidebar */}
           <aside className="hidden lg:block w-64 shrink-0">
             <div className="sticky top-24 space-y-6">
-              {/* Quick Stats */}
-              <div className="card p-5">
-                <h3 className="font-semibold text-gray-900 mb-4">Quick Stats</h3>
-                <div className="space-y-3">
-                  <div className="flex items-center justify-between">
-                    <span className="text-sm text-gray-600">Total Questions</span>
-                    <span className="text-sm font-semibold text-gray-900">{questions.length}</span>
-                  </div>
-                  <div className="flex items-center justify-between">
-                    <span className="text-sm text-gray-600">Answered</span>
-                    <span className="text-sm font-semibold text-green-600">
-                      {questions.filter(q => q.answers.length > 0).length}
-                    </span>
-                  </div>
-                  <div className="flex items-center justify-between">
-                    <span className="text-sm text-gray-600">Unanswered</span>
-                    <span className="text-sm font-semibold text-orange-600">
-                      {questions.filter(q => q.answers.length === 0).length}
-                    </span>
-                  </div>
+              {/* Community Card */}
+              <div className="card overflow-hidden animate-fade-in-left">
+                <img 
+                  src="https://images.unsplash.com/photo-1522202176988-66273c2fd55f?w=300&h=150&fit=crop" 
+                  alt="Community"
+                  className="w-full h-28 object-cover"
+                />
+                <div className="p-4">
+                  <h3 className="font-semibold text-gray-900 mb-1">Join the Discussion</h3>
+                  <p className="text-xs text-gray-500">Connect with {questions.length}+ questions</p>
                 </div>
               </div>
 
               {/* Popular Tags */}
-              <div className="card p-5">
+              <div className="card p-5 animate-fade-in-left animation-delay-100">
                 <h3 className="font-semibold text-gray-900 mb-4">Popular Tags</h3>
                 <div className="flex flex-wrap gap-2">
-                  <span className="tag tag-blue cursor-pointer">api</span>
-                  <span className="tag tag-gray cursor-pointer">deployment</span>
-                  <span className="tag tag-gray cursor-pointer">database</span>
-                  <span className="tag tag-gray cursor-pointer">authentication</span>
-                  <span className="tag tag-gray cursor-pointer">frontend</span>
+                  <span className="tag tag-purple cursor-pointer hover-scale">api</span>
+                  <span className="tag tag-gray cursor-pointer hover-scale">deployment</span>
+                  <span className="tag tag-gray cursor-pointer hover-scale">database</span>
+                  <span className="tag tag-gray cursor-pointer hover-scale">authentication</span>
+                  <span className="tag tag-gray cursor-pointer hover-scale">frontend</span>
                 </div>
               </div>
 
               {/* Top Contributors */}
-              <div className="card p-5">
+              <div className="card p-5 animate-fade-in-left animation-delay-200">
                 <h3 className="font-semibold text-gray-900 mb-4">Top Contributors</h3>
                 <div className="space-y-3">
                   {topContributors.map((contributor, i) => (
-                    <div key={i} className="flex items-center gap-3">
-                      <div className="w-8 h-8 bg-blue-100 rounded-full flex items-center justify-center text-sm font-medium text-blue-600">
-                        {contributor.avatar}
-                      </div>
+                    <div key={i} className={`flex items-center gap-3 hover-lift p-2 rounded-lg cursor-pointer animate-fade-in-up animation-delay-${(i + 1) * 100}`}>
+                      <img 
+                        src={`https://i.pravatar.cc/32?img=${i + 10}`}
+                        alt={contributor.name}
+                        className="w-8 h-8 rounded-full ring-2 ring-white shadow-sm"
+                      />
                       <div className="flex-1">
                         <p className="text-sm font-medium text-gray-900">{contributor.name}</p>
                         <p className="text-xs text-gray-500">{contributor.answers} answers</p>
                       </div>
-                      {i === 0 && <Award className="h-4 w-4 text-yellow-500" />}
+                      {i === 0 && <Award className="h-4 w-4 text-yellow-500 animate-bounce-slow" />}
                     </div>
                   ))}
                 </div>

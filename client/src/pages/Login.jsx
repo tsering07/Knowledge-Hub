@@ -1,7 +1,7 @@
 import { useState, useContext } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import AuthContext from '../context/AuthContext';
-import { Mail, Lock, BookOpen, ArrowRight, Users, FileText, HelpCircle } from 'lucide-react';
+import { Mail, Lock, BookOpen, ArrowRight, Users, FileText, HelpCircle, CheckCircle } from 'lucide-react';
 
 const Login = () => {
   const [email, setEmail] = useState('');
@@ -27,45 +27,73 @@ const Login = () => {
   return (
     <div className="min-h-screen flex">
       {/* Left Side - Branding */}
-      <div className="hidden lg:flex lg:w-1/2 bg-gradient-to-b from-blue-500 to-blue-600 relative overflow-hidden">
-        <div className="absolute inset-0 opacity-10">
-          <div className="absolute top-20 left-20 w-32 h-32 bg-white rounded-full"></div>
-          <div className="absolute bottom-40 right-20 w-48 h-48 bg-white rounded-full"></div>
-          <div className="absolute top-1/2 left-1/3 w-24 h-24 bg-white rounded-full"></div>
+      <div className="hidden lg:flex lg:w-1/2 bg-gradient-to-br from-blue-500 via-blue-600 to-indigo-700 relative overflow-hidden">
+        {/* Animated Background Elements */}
+        <div className="absolute inset-0">
+          <div className="absolute top-20 left-20 w-32 h-32 bg-white/10 rounded-full animate-float"></div>
+          <div className="absolute bottom-40 right-20 w-48 h-48 bg-white/10 rounded-full animate-float animation-delay-200"></div>
+          <div className="absolute top-1/2 left-1/3 w-24 h-24 bg-white/10 rounded-full animate-float animation-delay-400"></div>
+          <div className="absolute top-1/4 right-1/4 w-16 h-16 bg-white/5 rounded-full animate-bounce-slow"></div>
+          <div className="absolute bottom-1/4 left-1/4 w-20 h-20 bg-white/5 rounded-full animate-bounce-slow animation-delay-300"></div>
+        </div>
+
+        {/* Grid Pattern */}
+        <div className="absolute inset-0 opacity-5">
+          <div className="absolute inset-0" style={{
+            backgroundImage: 'radial-gradient(circle at 2px 2px, white 1px, transparent 0)',
+            backgroundSize: '40px 40px'
+          }}></div>
         </div>
         
         <div className="relative z-10 flex flex-col justify-center px-16 text-white">
-          <div className="flex items-center gap-3 mb-8">
-            <div className="p-3 bg-white/20 rounded-xl backdrop-blur-sm">
+          <div className="flex items-center gap-3 mb-8 animate-fade-in-down">
+            <div className="p-3 bg-white/20 rounded-xl backdrop-blur-sm animate-pulse-glow">
               <BookOpen className="h-8 w-8" />
             </div>
-            <span className="text-2xl font-bold">Knowledge Base</span>
+            <span className="text-2xl font-bold">Knowledge Hub</span>
           </div>
           
-          <h1 className="text-4xl font-bold mb-4 leading-tight">
+          <h1 className="text-4xl font-bold mb-4 leading-tight animate-fade-in-up">
             Your Team's
-            <span className="block">Central Knowledge Hub</span>
+            <span className="block bg-gradient-to-r from-white to-blue-200 bg-clip-text text-transparent">Central Knowledge Hub</span>
           </h1>
           
-          <p className="text-blue-100 text-lg mb-8 leading-relaxed">
+          <p className="text-blue-100 text-lg mb-8 leading-relaxed animate-fade-in-up animation-delay-100">
             Access documentation, find answers, and share knowledge with your team in one unified platform.
           </p>
+
+          {/* Illustration */}
+          <div className="relative mb-8 animate-fade-in-up animation-delay-200">
+            <img 
+              src="https://images.unsplash.com/photo-1522071820081-009f0129c71c?w=500&h=300&fit=crop" 
+              alt="Team collaboration"
+              className="rounded-2xl shadow-2xl border-4 border-white/20 hover-lift"
+            />
+            <div className="absolute -bottom-4 -right-4 bg-white rounded-xl p-3 shadow-lg animate-bounce-slow">
+              <div className="flex items-center gap-2">
+                <div className="w-8 h-8 bg-green-500 rounded-full flex items-center justify-center">
+                  <CheckCircle className="h-5 w-5 text-white" />
+                </div>
+                <span className="text-gray-800 font-medium text-sm">500+ Articles</span>
+              </div>
+            </div>
+          </div>
           
           <div className="space-y-4">
-            <div className="flex items-center gap-3 text-blue-100">
-              <div className="w-10 h-10 bg-white/20 rounded-lg flex items-center justify-center">
+            <div className="flex items-center gap-3 text-blue-100 animate-fade-in-left animation-delay-300">
+              <div className="w-10 h-10 bg-white/20 rounded-lg flex items-center justify-center hover-scale">
                 <FileText className="h-5 w-5" />
               </div>
               <span>500+ Articles & Guides</span>
             </div>
-            <div className="flex items-center gap-3 text-blue-100">
-              <div className="w-10 h-10 bg-white/20 rounded-lg flex items-center justify-center">
+            <div className="flex items-center gap-3 text-blue-100 animate-fade-in-left animation-delay-400">
+              <div className="w-10 h-10 bg-white/20 rounded-lg flex items-center justify-center hover-scale">
                 <Users className="h-5 w-5" />
               </div>
               <span>Team Collaboration</span>
             </div>
-            <div className="flex items-center gap-3 text-blue-100">
-              <div className="w-10 h-10 bg-white/20 rounded-lg flex items-center justify-center">
+            <div className="flex items-center gap-3 text-blue-100 animate-fade-in-left animation-delay-500">
+              <div className="w-10 h-10 bg-white/20 rounded-lg flex items-center justify-center hover-scale">
                 <HelpCircle className="h-5 w-5" />
               </div>
               <span>Q&A Community</span>

@@ -1,12 +1,12 @@
-import { useState, useContext, useEffect } from 'react';
+import { useState, useContext, useEffect, useRef } from 'react';
 import ReactQuill from 'react-quill-new';
 import 'react-quill-new/dist/quill.snow.css';
 import axios from 'axios';
-import { useNavigate, Link } from 'react-router-dom';
+import { useNavigate, Link, useParams } from 'react-router-dom';
 import AuthContext from '../context/AuthContext';
 import {
   Save, AlertCircle, ArrowLeft, FileText, Tag, Folder, Eye,
-  ChevronRight, Upload, X, Globe, Lock, Users, Clock, User
+  ChevronRight, Upload, X, Globe, Lock, Users, Clock, User, Download, File, Trash2, Image
 } from 'lucide-react';
 
 const ArticleEditor = () => {
@@ -18,37 +18,72 @@ const ArticleEditor = () => {
   const [tags, setTags] = useState('');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
+  const [pageLoading, setPageLoading] = useState(true);
   const [preview, setPreview] = useState(false);
   const [status, setStatus] = useState('published');
   const [visibility, setVisibility] = useState('public');
   const [description, setDescription] = useState('');
   const [autoSaveTime, setAutoSaveTime] = useState(null);
+  const [isEditMode, setIsEditMode] = useState(false);
+  const [attachments, setAttachments] = useState([]);
+  const [uploading, setUploading] = useState(false);
+  const [coverImage, setCoverImage] = useState(null);
+  const [coverImageUploading, setCoverImageUploading] = useState(false);
+  const fileInputRef = useRef(null);
+  const coverImageRef = useRef(null);
 
   const { user } = useContext(AuthContext);
   const navigate = useNavigate();
+  const { id } = useParams();
 
   useEffect(() => {
-    const fetchCategories = async () => {
+    const fetchData = async () => {
+      setPageLoading(true);
       try {
-        const { data } = await axios.get('http://localhost:5000/api/categories');
-        if (data && data.length > 0) {
-          setCategories(data);
+        // Fetch categories
+        const { data: categoriesData } = await axios.get('http://localhost:5000/api/categories');
+        if (categoriesData && categoriesData.length > 0) {
+          setCategories(categoriesData);
         } else {
           setError('No categories found. Please contact admin to add categories.');
         }
+
+        // If editing, fetch the article
+        if (id) {
+          setIsEditMode(true);
+          const token = localStorage.getItem('token');
+          const { data: articleData } = await axios.get(`http://localhost:5000/api/articles/id/${id}`, {
+            headers: { Authorization: `Bearer ${token}` }
+          });
+          
+          if (articleData) {
+            setTitle(articleData.title || '');
+            setContent(articleData.content || '');
+            setSlug(articleData.slug || '');
+            setCategory(articleData.category?._id || '');
+            setTags(articleData.tags?.join(', ') || '');
+            setStatus(articleData.status || 'published');
+            setDescription(articleData.description || '');
+            setVisibility(articleData.visibility || 'public');
+            setAttachments(articleData.attachments || []);
+            setCoverImage(articleData.coverImage || null);
+          }
+        }
       } catch (error) {
-        console.error('Failed to fetch categories:', error);
-        setError('Failed to load categories. Make sure the server is running.');
+        console.error('Failed to fetch data:', error);
+        setError('Failed to load data. Make sure the server is running.');
+      } finally {
+        setPageLoading(false);
       }
     };
-    fetchCategories();
-  }, []);
+    fetchData();
+  }, [id]);
 
   useEffect(() => {
-    if (title) {
+    if (title && !isEditMode) {
       setSlug(title.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, ''));
     }
-  }, [title]);
+  }, [title, isEditMode]);
 
   // Auto-save simulation
   useEffect(() => {
@@ -59,6 +94,115 @@ const ArticleEditor = () => {
       return () => clearTimeout(timer);
     }
   }, [title, content]);
+
+  // Handle file upload
+  const handleFileUpload = async (e) => {
+    const files = e.target.files;
+    if (!files || files.length === 0) return;
+
+    setUploading(true);
+    const token = localStorage.getItem('token');
+
+    try {
+      for (let i = 0; i < files.length; i++) {
+        const formData = new FormData();
+        formData.append('file', files[i]);
+
+        const { data } = await axios.post('http://localhost:5000/api/upload', formData, {
+          headers: {
+            Authorization: `Bearer ${token}`,
+            'Content-Type': 'multipart/form-data'
+          }
+        });
+
+        setAttachments(prev => [...prev, {
+          filename: data.filename,
+          originalName: data.originalName,
+          path: data.url,
+          mimetype: data.mimetype,
+          size: data.size
+        }]);
+      }
+    } catch (error) {
+      console.error('Upload error:', error);
+      setError('Failed to upload file. Please try again.');
+    } finally {
+      setUploading(false);
+      if (fileInputRef.current) {
+        fileInputRef.current.value = '';
+      }
+    }
+  };
+
+  // Handle cover image upload
+  const handleCoverImageUpload = async (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    // Validate file type (images only)
+    if (!file.type.startsWith('image/')) {
+      setError('Cover image must be an image file (JPG, PNG, etc.)');
+      return;
+    }
+
+    // Validate file size (max 5MB)
+    if (file.size > 5 * 1024 * 1024) {
+      setError('Cover image must be less than 5MB');
+      return;
+    }
+
+    setCoverImageUploading(true);
+    const token = localStorage.getItem('token');
+
+    try {
+      const formData = new FormData();
+      formData.append('file', file);
+
+      const { data } = await axios.post('http://localhost:5000/api/upload', formData, {
+        headers: {
+          Authorization: `Bearer ${token}`,
+          'Content-Type': 'multipart/form-data'
+        }
+      });
+
+      setCoverImage(data.url);
+    } catch (error) {
+      console.error('Cover image upload error:', error);
+      setError('Failed to upload cover image. Please try again.');
+    } finally {
+      setCoverImageUploading(false);
+      if (coverImageRef.current) {
+        coverImageRef.current.value = '';
+      }
+    }
+  };
+
+  // Remove cover image
+  const removeCoverImage = () => {
+    setCoverImage(null);
+  };
+
+  // Remove attachment
+  const removeAttachment = (index) => {
+    setAttachments(prev => prev.filter((_, i) => i !== index));
+  };
+
+  // Get file icon based on mimetype
+  const getFileIcon = (mimetype) => {
+    if (mimetype?.startsWith('image/')) return '🖼️';
+    if (mimetype === 'application/pdf') return '📄';
+    if (mimetype?.includes('document')) return '📝';
+    return '📁';
+  };
+
+  // Format file size
+  const formatFileSize = (bytes) => {
+    if (!bytes) return '0 B';
+    const k = 1024;
+    const sizes = ['B', 'KB', 'MB', 'GB'];
+    const i = Math.floor(Math.log(bytes) / Math.log(k));
+    return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
+  };
 
   const handleSubmit = async (publishStatus = 'published') => {
     setError('');
@@ -81,10 +225,18 @@ const ArticleEditor = () => {
         content,
         tags: tags.split(',').map(t => t.trim()).filter(t => t),
         category,
-        status: publishStatus
+        status: publishStatus,
+        visibility,
+        description,
+        attachments,
+        coverImage
       };
 
-      await axios.post('http://localhost:5000/api/articles', articleData, config);
+      if (isEditMode) {
+        await axios.put(`http://localhost:5000/api/articles/${id}`, articleData, config);
+      } else {
+        await axios.post('http://localhost:5000/api/articles', articleData, config);
+      }
       navigate(publishStatus === 'draft' ? '/my-articles' : '/wiki');
     } catch (err) {
       setError(err.response?.data?.message || 'Failed to publish article');
@@ -104,6 +256,18 @@ const ArticleEditor = () => {
     ],
   };
 
+  // Show loading state while fetching data
+  if (pageLoading) {
+    return (
+      <div className="min-h-screen bg-slate-50 flex items-center justify-center">
+        <div className="text-center">
+          <div className="w-12 h-12 border-4 border-blue-200 border-t-blue-500 rounded-full animate-spin mx-auto mb-4"></div>
+          <p className="text-gray-500">Loading editor...</p>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="min-h-screen bg-slate-50">
       {/* Top Bar */}
@@ -121,7 +285,7 @@ const ArticleEditor = () => {
               <nav className="hidden sm:flex items-center gap-2 text-sm text-gray-500">
                 <Link to="/wiki" className="hover:text-blue-600">Knowledge Base</Link>
                 <ChevronRight className="h-4 w-4" />
-                <span className="text-gray-900">New Article</span>
+                <span className="text-gray-900">{isEditMode ? 'Edit Article' : 'New Article'}</span>
               </nav>
             </div>
 
@@ -158,7 +322,7 @@ const ArticleEditor = () => {
                 disabled={loading}
                 className="px-4 py-2 text-sm font-medium text-white bg-blue-500 rounded-lg hover:bg-blue-600 transition-colors disabled:opacity-50"
               >
-                {loading ? 'Publishing...' : 'Publish'}
+                {loading ? (isEditMode ? 'Updating...' : 'Publishing...') : (isEditMode ? 'Update' : 'Publish')}
               </button>
             </div>
           </div>
@@ -340,14 +504,114 @@ const ArticleEditor = () => {
                 </div>
               </div>
 
+              {/* Cover Image */}
+              <div className="card p-5">
+                <h3 className="font-semibold text-gray-900 mb-4">Cover Image</h3>
+                <p className="text-xs text-gray-500 mb-3">This image will appear on the article card</p>
+                
+                {coverImage ? (
+                  <div className="relative group">
+                    <img
+                      src={`http://localhost:5000${coverImage}`}
+                      alt="Cover"
+                      className="w-full h-40 object-cover rounded-lg"
+                    />
+                    <button
+                      type="button"
+                      onClick={removeCoverImage}
+                      className="absolute top-2 right-2 p-1.5 bg-red-500 text-white rounded-full opacity-0 group-hover:opacity-100 transition-opacity"
+                    >
+                      <X className="h-4 w-4" />
+                    </button>
+                  </div>
+                ) : (
+                  <div 
+                    className={`border-2 border-dashed rounded-lg p-6 text-center cursor-pointer transition-colors ${
+                      coverImageUploading ? 'border-blue-300 bg-blue-50' : 'border-gray-200 hover:border-blue-400 hover:bg-blue-50'
+                    }`}
+                    onClick={() => coverImageRef.current?.click()}
+                  >
+                    <input
+                      ref={coverImageRef}
+                      type="file"
+                      accept="image/*"
+                      onChange={handleCoverImageUpload}
+                      className="hidden"
+                    />
+                    {coverImageUploading ? (
+                      <>
+                        <div className="w-8 h-8 border-3 border-blue-200 border-t-blue-500 rounded-full animate-spin mx-auto mb-2"></div>
+                        <p className="text-sm text-blue-600 font-medium">Uploading...</p>
+                      </>
+                    ) : (
+                      <>
+                        <Image className="h-8 w-8 text-gray-300 mx-auto mb-2" />
+                        <p className="text-sm text-blue-600 font-medium">Add cover image</p>
+                        <p className="text-xs text-gray-400 mt-1">JPG, PNG (MAX. 5MB)</p>
+                      </>
+                    )}
+                  </div>
+                )}
+              </div>
+
               {/* Attachments */}
               <div className="card p-5">
                 <h3 className="font-semibold text-gray-900 mb-4">Attachments</h3>
-                <div className="border-2 border-dashed border-gray-200 rounded-lg p-6 text-center">
-                  <Upload className="h-8 w-8 text-gray-300 mx-auto mb-2" />
-                  <p className="text-sm text-blue-600 font-medium">Click to upload</p>
-                  <p className="text-xs text-gray-400">or drag and drop</p>
-                  <p className="text-xs text-gray-400 mt-1">PDF, DOCX, JPG (MAX. 10MB)</p>
+                
+                {/* Uploaded Files List */}
+                {attachments.length > 0 && (
+                  <div className="space-y-2 mb-4">
+                    {attachments.map((file, index) => (
+                      <div key={index} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
+                        <div className="flex items-center gap-3">
+                          <span className="text-xl">{getFileIcon(file.mimetype)}</span>
+                          <div>
+                            <p className="text-sm font-medium text-gray-700 truncate max-w-[150px]">
+                              {file.originalName}
+                            </p>
+                            <p className="text-xs text-gray-400">{formatFileSize(file.size)}</p>
+                          </div>
+                        </div>
+                        <button
+                          type="button"
+                          onClick={() => removeAttachment(index)}
+                          className="p-1.5 text-gray-400 hover:text-red-500 hover:bg-red-50 rounded transition-colors"
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                )}
+
+                {/* Upload Area */}
+                <div 
+                  className={`border-2 border-dashed rounded-lg p-6 text-center cursor-pointer transition-colors ${
+                    uploading ? 'border-blue-300 bg-blue-50' : 'border-gray-200 hover:border-blue-400 hover:bg-blue-50'
+                  }`}
+                  onClick={() => fileInputRef.current?.click()}
+                >
+                  <input
+                    ref={fileInputRef}
+                    type="file"
+                    multiple
+                    accept=".pdf,.doc,.docx,.txt,.jpg,.jpeg,.png,.gif,.webp"
+                    onChange={handleFileUpload}
+                    className="hidden"
+                  />
+                  {uploading ? (
+                    <>
+                      <div className="w-8 h-8 border-3 border-blue-200 border-t-blue-500 rounded-full animate-spin mx-auto mb-2"></div>
+                      <p className="text-sm text-blue-600 font-medium">Uploading...</p>
+                    </>
+                  ) : (
+                    <>
+                      <Upload className="h-8 w-8 text-gray-300 mx-auto mb-2" />
+                      <p className="text-sm text-blue-600 font-medium">Click to upload</p>
+                      <p className="text-xs text-gray-400">or drag and drop</p>
+                      <p className="text-xs text-gray-400 mt-1">PDF, DOCX, JPG, PNG (MAX. 10MB)</p>
+                    </>
+                  )}
                 </div>
               </div>
             </div>

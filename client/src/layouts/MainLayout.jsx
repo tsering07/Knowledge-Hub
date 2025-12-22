@@ -1,10 +1,11 @@
 import { Link, useNavigate, useLocation } from 'react-router-dom';
-import { useContext, useState } from 'react';
+import { useContext, useState, useEffect } from 'react';
+import axios from 'axios';
 import AuthContext from '../context/AuthContext';
 import { 
   Search, LogOut, User, BookOpen, Menu, X, FileText, 
   HelpCircle, FolderOpen, ChevronDown, Bell, Plus,
-  Home, Bookmark, Settings, PenSquare
+  Home, Bookmark, Settings, PenSquare, MessageSquare, Heart, ThumbsUp, ThumbsDown, UserCog
 } from 'lucide-react';
 
 const MainLayout = ({ children }) => {
@@ -14,6 +15,86 @@ const MainLayout = ({ children }) => {
   const [searchQuery, setSearchQuery] = useState('');
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [userMenuOpen, setUserMenuOpen] = useState(false);
+  const [notificationMenuOpen, setNotificationMenuOpen] = useState(false);
+  const [notifications, setNotifications] = useState([]);
+  const [unreadCount, setUnreadCount] = useState(0);
+
+  // Fetch notifications for all logged-in users
+  useEffect(() => {
+    if (user) {
+      fetchNotifications();
+      fetchUnreadCount();
+      // Poll for new notifications every 30 seconds
+      const interval = setInterval(fetchUnreadCount, 30000);
+      return () => clearInterval(interval);
+    }
+  }, [user]);
+
+  const fetchNotifications = async () => {
+    try {
+      const token = localStorage.getItem('token');
+      const { data } = await axios.get('http://localhost:5000/api/notifications', {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      setNotifications(data);
+    } catch (error) {
+      console.error('Failed to fetch notifications:', error);
+    }
+  };
+
+  const fetchUnreadCount = async () => {
+    try {
+      const token = localStorage.getItem('token');
+      const { data } = await axios.get('http://localhost:5000/api/notifications/unread-count', {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      setUnreadCount(data.count);
+    } catch (error) {
+      console.error('Failed to fetch unread count:', error);
+    }
+  };
+
+  const markAsRead = async (notificationId) => {
+    try {
+      const token = localStorage.getItem('token');
+      await axios.put(`http://localhost:5000/api/notifications/${notificationId}/read`, {}, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      setNotifications(notifications.map(n => 
+        n._id === notificationId ? { ...n, read: true } : n
+      ));
+      setUnreadCount(prev => Math.max(0, prev - 1));
+    } catch (error) {
+      console.error('Failed to mark as read:', error);
+    }
+  };
+
+  const markAllAsRead = async () => {
+    try {
+      const token = localStorage.getItem('token');
+      await axios.put('http://localhost:5000/api/notifications/read-all', {}, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      setNotifications(notifications.map(n => ({ ...n, read: true })));
+      setUnreadCount(0);
+    } catch (error) {
+      console.error('Failed to mark all as read:', error);
+    }
+  };
+
+  const getNotificationIcon = (type) => {
+    switch (type) {
+      case 'comment': return <MessageSquare className="h-4 w-4 text-blue-500" />;
+      case 'comment_reply': return <MessageSquare className="h-4 w-4 text-indigo-500" />;
+      case 'like': return <Heart className="h-4 w-4 text-red-500" />;
+      case 'helpful_yes': return <ThumbsUp className="h-4 w-4 text-green-500" />;
+      case 'helpful_no': return <ThumbsDown className="h-4 w-4 text-orange-500" />;
+      case 'role_change': return <UserCog className="h-4 w-4 text-purple-500" />;
+      case 'new_article': return <Bell className="h-4 w-4 text-blue-500" />;
+      case 'question_answer': return <MessageSquare className="h-4 w-4 text-green-500" />;
+      default: return <Bell className="h-4 w-4 text-gray-500" />;
+    }
+  };
 
   // Pages that have their own sidebar and don't need the main header
   const pagesWithSidebar = ['/profile', '/settings', '/analytics', '/feedback', '/support', '/admin'];
@@ -33,11 +114,21 @@ const MainLayout = ({ children }) => {
 
   const isActive = (path) => location.pathname === path || location.pathname.startsWith(path + '/');
 
-  const navLinks = [
+  // Navigation links - some require authentication and specific roles
+  const publicNavLinks = [
     { path: '/', label: 'Home', icon: Home },
     { path: '/wiki', label: 'Categories', icon: FolderOpen },
-    { path: '/my-articles', label: 'My Articles', icon: FileText },
   ];
+
+  // My Articles only for users who can create articles (contributor, editor, admin)
+  const canCreateArticles = user && ['contributor', 'editor', 'admin'].includes(user.role);
+  
+  const protectedNavLinks = canCreateArticles
+    ? [{ path: '/my-articles', label: 'My Articles', icon: FileText }]
+    : [];
+
+  // Combine nav links based on auth status and role
+  const navLinks = [...publicNavLinks, ...protectedNavLinks];
 
   return (
     <div className="min-h-screen flex flex-col bg-slate-50">
@@ -99,11 +190,77 @@ const MainLayout = ({ children }) => {
                     </Link>
                   )}
 
-                  {/* Notifications */}
-                  <button className="p-2 text-gray-500 hover:text-gray-700 hover:bg-gray-100 rounded-lg relative">
-                    <Bell className="h-5 w-5" />
-                    <span className="absolute top-1.5 right-1.5 w-2 h-2 bg-red-500 rounded-full"></span>
-                  </button>
+                  {/* Notifications - for all users */}
+                  <div className="relative">
+                    <button 
+                      onClick={() => {
+                        setNotificationMenuOpen(!notificationMenuOpen);
+                        if (!notificationMenuOpen) fetchNotifications();
+                      }}
+                      className="p-2 text-gray-500 hover:text-gray-700 hover:bg-gray-100 rounded-lg relative"
+                    >
+                      <Bell className="h-5 w-5" />
+                      {unreadCount > 0 && (
+                        <span className="absolute top-1 right-1 w-4 h-4 bg-red-500 rounded-full text-[10px] text-white flex items-center justify-center">
+                          {unreadCount > 9 ? '9+' : unreadCount}
+                        </span>
+                      )}
+                    </button>
+
+                    {notificationMenuOpen && (
+                      <>
+                        <div className="fixed inset-0 z-10" onClick={() => setNotificationMenuOpen(false)} />
+                        <div className="absolute right-0 mt-2 w-80 bg-white rounded-xl border border-gray-200 shadow-lg z-20 max-h-96 overflow-hidden">
+                          <div className="p-3 border-b border-gray-100 flex items-center justify-between">
+                            <h3 className="font-semibold text-gray-900">Notifications</h3>
+                            {unreadCount > 0 && (
+                              <button 
+                                onClick={markAllAsRead}
+                                className="text-xs text-blue-600 hover:text-blue-700"
+                              >
+                                Mark all as read
+                              </button>
+                            )}
+                          </div>
+                          <div className="overflow-y-auto max-h-72">
+                            {notifications.length > 0 ? notifications.map((notification) => (
+                              <div 
+                                key={notification._id}
+                                onClick={() => {
+                                  if (!notification.read) markAsRead(notification._id);
+                                  if (notification.article) {
+                                    navigate(`/wiki/${notification.article.slug}`);
+                                  } else if (notification.question) {
+                                    navigate(`/qa/${notification.question._id}`);
+                                  }
+                                  setNotificationMenuOpen(false);
+                                }}
+                                className={`p-3 border-b border-gray-50 hover:bg-gray-50 cursor-pointer flex items-start gap-3 ${!notification.read ? 'bg-blue-50' : ''}`}
+                              >
+                                <div className="mt-0.5">
+                                  {getNotificationIcon(notification.type)}
+                                </div>
+                                  <div className="flex-1 min-w-0">
+                                    <p className="text-sm text-gray-800 line-clamp-2">{notification.message}</p>
+                                    <p className="text-xs text-gray-400 mt-1">
+                                      {new Date(notification.createdAt).toLocaleDateString()}
+                                    </p>
+                                  </div>
+                                  {!notification.read && (
+                                    <div className="w-2 h-2 bg-blue-500 rounded-full mt-2"></div>
+                                  )}
+                                </div>
+                              )) : (
+                                <div className="p-6 text-center text-gray-500">
+                                  <Bell className="h-8 w-8 mx-auto mb-2 text-gray-300" />
+                                  <p className="text-sm">No notifications yet</p>
+                                </div>
+                              )}
+                            </div>
+                          </div>
+                        </>
+                      )}
+                    </div>
 
                   {/* User Menu */}
                   <div className="relative">
@@ -134,14 +291,16 @@ const MainLayout = ({ children }) => {
                               <User className="h-4 w-4" />
                               Profile
                             </Link>
-                            <Link
-                              to="/my-articles"
-                              onClick={() => setUserMenuOpen(false)}
-                              className="flex items-center gap-3 px-4 py-2 text-sm text-gray-700 hover:bg-gray-50"
-                            >
-                              <PenSquare className="h-4 w-4" />
-                              My Articles
-                            </Link>
+                            {canCreateArticles && (
+                              <Link
+                                to="/my-articles"
+                                onClick={() => setUserMenuOpen(false)}
+                                className="flex items-center gap-3 px-4 py-2 text-sm text-gray-700 hover:bg-gray-50"
+                              >
+                                <PenSquare className="h-4 w-4" />
+                                My Articles
+                              </Link>
+                            )}
                             <Link
                               to="/bookmarks"
                               onClick={() => setUserMenuOpen(false)}

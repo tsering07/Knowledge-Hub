@@ -41,12 +41,13 @@ export const AuthProvider = ({ children }) => {
     }
   };
 
-  const register = async (username, email, password) => {
+  const register = async (username, email, password, role = 'viewer') => {
     try {
       const { data } = await axios.post('http://localhost:5000/api/auth/register', { 
         username, 
         email, 
-        password 
+        password,
+        role
       });
       localStorage.setItem('token', data.token);
       setUser(data);
@@ -61,8 +62,13 @@ export const AuthProvider = ({ children }) => {
     setUser(null);
   };
 
+  // Update user data (e.g., after profile photo change)
+  const updateUser = (updates) => {
+    setUser(prev => prev ? { ...prev, ...updates } : null);
+  };
+
   return (
-    <AuthContext.Provider value={{ user, login, register, logout, loading }}>
+    <AuthContext.Provider value={{ user, login, register, logout, loading, updateUser }}>
       {children}
     </AuthContext.Provider>
   );

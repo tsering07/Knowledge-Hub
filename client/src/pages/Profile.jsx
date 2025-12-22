@@ -5,7 +5,7 @@ import AuthContext from '../context/AuthContext';
 import {
   Home, Search, User, Library, Users, Settings, HelpCircle,
   FileText, Bookmark, Eye, Edit, MapPin, Calendar, Mail, Hash,
-  Building, ChevronRight, List, Grid, BookOpen, BarChart3, MessageSquare
+  Building, ChevronRight, List, Grid, BookOpen, BarChart3, MessageSquare, ShieldCheck
 } from 'lucide-react';
 
 const Profile = () => {
@@ -15,6 +15,7 @@ const Profile = () => {
   const [articles, setArticles] = useState([]);
   const [bookmarks, setBookmarks] = useState([]);
   const [stats, setStats] = useState({ articles: 0, saves: 0, views: 0 });
+  const [profileData, setProfileData] = useState(null);
 
   useEffect(() => {
     fetchUserData();
@@ -23,17 +24,21 @@ const Profile = () => {
   const fetchUserData = async () => {
     try {
       const token = localStorage.getItem('token');
-      const [articlesRes, bookmarksRes] = await Promise.all([
+      const [articlesRes, bookmarksRes, profileRes] = await Promise.all([
         axios.get('http://localhost:5000/api/articles/my', {
           headers: { Authorization: `Bearer ${token}` }
         }),
         axios.get('http://localhost:5000/api/articles/bookmarked', {
+          headers: { Authorization: `Bearer ${token}` }
+        }),
+        axios.get('http://localhost:5000/api/upload/profile', {
           headers: { Authorization: `Bearer ${token}` }
         })
       ]);
 
       setArticles(articlesRes.data);
       setBookmarks(bookmarksRes.data);
+      setProfileData(profileRes.data);
 
       const totalViews = articlesRes.data.reduce((sum, a) => sum + (a.views || 0), 0);
       setStats({
@@ -51,13 +56,20 @@ const Profile = () => {
     { icon: Search, label: 'Search', path: '/search' },
   ];
 
-  const workspaceLinks = [
+  const allWorkspaceLinks = [
     { icon: User, label: 'My Profile', path: '/profile' },
     { icon: Library, label: 'My Library', path: '/bookmarks' },
-    { icon: BarChart3, label: 'Analytics', path: '/analytics' },
+    { icon: BarChart3, label: 'Analytics', path: '/analytics', hideForViewer: true },
     { icon: MessageSquare, label: 'Feedback', path: '/feedback' },
-    { icon: Users, label: 'Team Directory', path: '/wiki' },
+    { icon: Users, label: 'Team Directory', path: '/wiki', hideForViewer: true },
+    { icon: ShieldCheck, label: 'Admin Panel', path: '/admin', adminOnly: true },
   ];
+  
+  const workspaceLinks = allWorkspaceLinks.filter(link => {
+    if (link.adminOnly && user?.role !== 'admin' && user?.role !== 'editor') return false;
+    if (link.hideForViewer && user?.role === 'viewer') return false;
+    return true;
+  });
 
   const bottomLinks = [
     { icon: Settings, label: 'Settings', path: '/settings' },
@@ -148,79 +160,104 @@ const Profile = () => {
       <main className="flex-1 ml-56 p-8">
         <div className="max-w-6xl mx-auto">
           {/* Profile Header Card */}
-          <div className="card p-6 mb-6">
-            <div className="flex items-start justify-between">
-              <div className="flex items-center gap-5">
-                <div className="relative">
-                  <div className="w-24 h-24 bg-gradient-to-br from-blue-400 to-blue-600 rounded-full flex items-center justify-center ring-4 ring-white shadow-lg">
-                    <span className="text-3xl font-bold text-white">
-                      {user?.username?.slice(0, 2).toUpperCase() || 'JD'}
-                    </span>
-                  </div>
-                  <div className="absolute bottom-1 right-1 w-4 h-4 bg-green-500 rounded-full border-2 border-white"></div>
-                </div>
-                <div>
-                  <h1 className="text-2xl font-bold text-gray-900">
-                    {user?.username || 'User'}
-                  </h1>
-                  {user?.jobTitle ? (
-                    <p className="text-gray-500">
-                      {user.jobTitle}{user?.department ? ` | ${user.department}` : ''}
-                    </p>
-                  ) : (
-                    <p className="text-gray-400 italic text-sm">
-                      Add your job title in Settings
-                    </p>
-                  )}
-                  <div className="flex items-center gap-4 mt-2 text-sm text-gray-500">
-                    {user?.location && (
-                      <span className="flex items-center gap-1">
-                        <MapPin className="h-4 w-4" />
-                        {user.location}
-                      </span>
-                    )}
-                    <span className="flex items-center gap-1">
-                      <Calendar className="h-4 w-4" />
-                      Joined {new Date(user?.createdAt || Date.now()).toLocaleDateString('en-US', { month: 'short', year: 'numeric' })}
-                    </span>
-                  </div>
-                </div>
+          <div className="card overflow-hidden mb-6 animate-fade-in-up">
+            {/* Cover Image */}
+            <div className="h-32 bg-gradient-to-r from-blue-500 via-purple-500 to-pink-500 relative">
+              <div className="absolute inset-0">
+                <div className="absolute top-4 left-10 w-16 h-16 bg-white/10 rounded-full animate-float"></div>
+                <div className="absolute bottom-4 right-20 w-20 h-20 bg-white/10 rounded-full animate-float animation-delay-200"></div>
               </div>
-              <div className="flex items-center gap-3">
-                <button className="btn btn-outline">Message</button>
-                <Link to="/settings" className="btn btn-primary">Edit Profile</Link>
-              </div>
+              <img 
+                src="https://images.unsplash.com/photo-1557682250-33bd709cbe85?w=1200&h=200&fit=crop"
+                alt="Profile cover"
+                className="w-full h-full object-cover opacity-50"
+              />
             </div>
+            
+            <div className="p-6 -mt-12 relative">
+              <div className="flex items-end justify-between">
+                <div className="flex items-end gap-5">
+                  <div className="relative animate-scale-in">
+                    {profileData?.profilePhoto ? (
+                      <img 
+                        src={`http://localhost:5000${profileData.profilePhoto}`}
+                        alt="Profile"
+                        className="w-24 h-24 rounded-full object-cover ring-4 ring-white shadow-xl"
+                      />
+                    ) : (
+                      <div className="w-24 h-24 bg-gradient-to-br from-blue-400 to-purple-600 rounded-full flex items-center justify-center ring-4 ring-white shadow-xl">
+                        <span className="text-3xl font-bold text-white">
+                          {user?.username?.slice(0, 2).toUpperCase() || 'JD'}
+                        </span>
+                      </div>
+                    )}
+                    <div className="absolute bottom-1 right-1 w-5 h-5 bg-green-500 rounded-full border-3 border-white animate-pulse"></div>
+                  </div>
+                  <div className="mb-2 animate-fade-in-up animation-delay-100">
+                    <h1 className="text-2xl font-bold text-gray-900">
+                      {profileData?.firstName && profileData?.lastName 
+                        ? `${profileData.firstName} ${profileData.lastName}` 
+                        : user?.username || 'User'}
+                    </h1>
+                    {profileData?.jobTitle || user?.jobTitle ? (
+                      <p className="text-gray-500">
+                        {profileData?.jobTitle || user?.jobTitle}{(profileData?.department || user?.department) ? ` | ${profileData?.department || user?.department}` : ''}
+                      </p>
+                    ) : (
+                      <p className="text-gray-400 italic text-sm">
+                        Add your job title in Settings
+                      </p>
+                    )}
+                    <div className="flex items-center gap-4 mt-2 text-sm text-gray-500">
+                      {(profileData?.location || user?.location) && (
+                        <span className="flex items-center gap-1">
+                          <MapPin className="h-4 w-4" />
+                          {profileData?.location || user?.location}
+                        </span>
+                      )}
+                      <span className="flex items-center gap-1">
+                        <Calendar className="h-4 w-4" />
+                        Joined {new Date(user?.createdAt || Date.now()).toLocaleDateString('en-US', { month: 'short', year: 'numeric' })}
+                      </span>
+                    </div>
+                  </div>
+                </div>
+                <div className="flex items-center gap-3 animate-fade-in-right">
+                  <button className="btn btn-outline hover-lift">Message</button>
+                  <Link to="/settings" className="btn btn-primary hover-lift">Edit Profile</Link>
+                </div>
+              </div>
 
-            {/* Stats */}
-            <div className="flex items-center gap-8 mt-6 pt-6 border-t border-gray-100">
-              <div className="flex items-center gap-3">
-                <div className="w-10 h-10 bg-blue-50 rounded-lg flex items-center justify-center">
-                  <FileText className="h-5 w-5 text-blue-600" />
+              {/* Stats */}
+              <div className="flex items-center gap-8 mt-6 pt-6 border-t border-gray-100">
+                <div className="flex items-center gap-3 hover-lift cursor-pointer animate-fade-in-up animation-delay-200">
+                  <div className="w-10 h-10 bg-gradient-to-br from-blue-50 to-blue-100 rounded-lg flex items-center justify-center">
+                    <FileText className="h-5 w-5 text-blue-600" />
+                  </div>
+                  <div>
+                    <p className="text-xl font-bold text-gray-900">{stats.articles}</p>
+                    <p className="text-xs text-gray-500">Articles Written</p>
+                  </div>
                 </div>
-                <div>
-                  <p className="text-xl font-bold text-gray-900">{stats.articles}</p>
-                  <p className="text-xs text-gray-500">Articles Written</p>
+                <div className="flex items-center gap-3 hover-lift cursor-pointer animate-fade-in-up animation-delay-300">
+                  <div className="w-10 h-10 bg-gradient-to-br from-orange-50 to-orange-100 rounded-lg flex items-center justify-center">
+                    <Bookmark className="h-5 w-5 text-orange-600" />
+                  </div>
+                  <div>
+                    <p className="text-xl font-bold text-gray-900">{stats.saves}</p>
+                    <p className="text-xs text-gray-500">Saved Items</p>
+                  </div>
                 </div>
-              </div>
-              <div className="flex items-center gap-3">
-                <div className="w-10 h-10 bg-orange-50 rounded-lg flex items-center justify-center">
-                  <Bookmark className="h-5 w-5 text-orange-600" />
-                </div>
-                <div>
-                  <p className="text-xl font-bold text-gray-900">{stats.saves}</p>
-                  <p className="text-xs text-gray-500">Saved Items</p>
-                </div>
-              </div>
-              <div className="flex items-center gap-3">
-                <div className="w-10 h-10 bg-green-50 rounded-lg flex items-center justify-center">
-                  <Eye className="h-5 w-5 text-green-600" />
-                </div>
-                <div>
-                  <p className="text-xl font-bold text-gray-900">
-                    {stats.views >= 1000 ? `${(stats.views / 1000).toFixed(1)}k` : stats.views}
-                  </p>
-                  <p className="text-xs text-gray-500">Total Views</p>
+                <div className="flex items-center gap-3 hover-lift cursor-pointer animate-fade-in-up animation-delay-400">
+                  <div className="w-10 h-10 bg-gradient-to-br from-green-50 to-green-100 rounded-lg flex items-center justify-center">
+                    <Eye className="h-5 w-5 text-green-600" />
+                  </div>
+                  <div>
+                    <p className="text-xl font-bold text-gray-900">
+                      {stats.views >= 1000 ? `${(stats.views / 1000).toFixed(1)}k` : stats.views}
+                    </p>
+                    <p className="text-xs text-gray-500">Total Views</p>
+                  </div>
                 </div>
               </div>
             </div>

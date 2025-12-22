@@ -2,6 +2,7 @@ import React from 'react';
 import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
 import { AuthProvider } from './context/AuthContext';
 import MainLayout from './layouts/MainLayout';
+import ProtectedRoute from './components/ProtectedRoute';
 import Home from './pages/Home';
 
 import Login from './pages/Login';
@@ -29,25 +30,29 @@ function App() {
       <Router>
         <MainLayout>
           <Routes>
+            {/* Public Routes - Accessible without login */}
             <Route path="/" element={<Home />} />
             <Route path="/login" element={<Login />} />
             <Route path="/register" element={<Register />} />
             <Route path="/wiki" element={<Wiki />} />
-            <Route path="/wiki/new" element={<ArticleEditor />} />
             <Route path="/wiki/:slug" element={<ArticleView />} />
-            <Route path="/qa" element={<QA />} />
-            <Route path="/qa/:id" element={<QuestionDetail />} />
-            <Route path="/repo" element={<Repo />} />
             <Route path="/search" element={<SearchPage />} />
-            <Route path="/editor" element={<ArticleEditor />} />
-            <Route path="/my-articles" element={<MyArticles />} />
-            <Route path="/bookmarks" element={<Bookmarks />} />
-            <Route path="/profile" element={<Profile />} />
-            <Route path="/settings" element={<Settings />} />
-            <Route path="/analytics" element={<Analytics />} />
-            <Route path="/feedback" element={<Feedback />} />
-            <Route path="/support" element={<Support />} />
-            <Route path="/admin" element={<Admin />} />
+            
+            {/* Protected Routes - Require login */}
+            <Route path="/wiki/new" element={<ProtectedRoute><ArticleEditor /></ProtectedRoute>} />
+            <Route path="/editor" element={<ProtectedRoute><ArticleEditor /></ProtectedRoute>} />
+            <Route path="/editor/:id" element={<ProtectedRoute><ArticleEditor /></ProtectedRoute>} />
+            <Route path="/qa" element={<ProtectedRoute><QA /></ProtectedRoute>} />
+            <Route path="/qa/:id" element={<ProtectedRoute><QuestionDetail /></ProtectedRoute>} />
+            <Route path="/repo" element={<ProtectedRoute><Repo /></ProtectedRoute>} />
+            <Route path="/my-articles" element={<ProtectedRoute><MyArticles /></ProtectedRoute>} />
+            <Route path="/bookmarks" element={<ProtectedRoute><Bookmarks /></ProtectedRoute>} />
+            <Route path="/profile" element={<ProtectedRoute><Profile /></ProtectedRoute>} />
+            <Route path="/settings" element={<ProtectedRoute><Settings /></ProtectedRoute>} />
+            <Route path="/analytics" element={<ProtectedRoute><Analytics /></ProtectedRoute>} />
+            <Route path="/feedback" element={<ProtectedRoute><Feedback /></ProtectedRoute>} />
+            <Route path="/support" element={<ProtectedRoute><Support /></ProtectedRoute>} />
+            <Route path="/admin" element={<ProtectedRoute><Admin /></ProtectedRoute>} />
           </Routes>
         </MainLayout>
       </Router>

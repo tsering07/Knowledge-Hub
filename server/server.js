@@ -4,12 +4,15 @@ const cors = require('cors');
 const morgan = require('morgan');
 const helmet = require('helmet');
 const connectDB = require('./config/db');
+const { runSeeds } = require('./utils/seedData');
 
 // Load env vars
 dotenv.config();
 
-// Connect to database
-connectDB();
+// Connect to database and run seeds
+connectDB().then(() => {
+  runSeeds();
+});
 
 const path = require('path');
 
@@ -18,7 +21,10 @@ const app = express();
 // Middleware
 app.use(express.json());
 app.use(cors());
-app.use(helmet());
+// Configure helmet to allow images from same origin
+app.use(helmet({
+  crossOriginResourcePolicy: { policy: "cross-origin" }
+}));
 app.use(morgan('dev'));
 
 // Serve uploaded files
@@ -36,6 +42,7 @@ app.use('/api/categories', require('./routes/categories'));
 app.use('/api/qa', require('./routes/qa'));
 app.use('/api/upload', require('./routes/upload'));
 app.use('/api/admin', require('./routes/admin'));
+app.use('/api/notifications', require('./routes/notifications'));
 
 // Error handling middleware
 app.use((err, req, res, next) => {

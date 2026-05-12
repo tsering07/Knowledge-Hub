@@ -33,7 +33,7 @@ const MainLayout = ({ children }) => {
   const fetchNotifications = async () => {
     try {
       const token = localStorage.getItem('token');
-      const { data } = await axios.get('http://localhost:5000/api/notifications', {
+      const { data } = await axios.get('https://knowledge-hub-2.onrender.com/api/notifications', {
         headers: { Authorization: `Bearer ${token}` }
       });
       setNotifications(data);
@@ -45,7 +45,7 @@ const MainLayout = ({ children }) => {
   const fetchUnreadCount = async () => {
     try {
       const token = localStorage.getItem('token');
-      const { data } = await axios.get('http://localhost:5000/api/notifications/unread-count', {
+      const { data } = await axios.get('https://knowledge-hub-2.onrender.com/api/notifications/unread-count', {
         headers: { Authorization: `Bearer ${token}` }
       });
       setUnreadCount(data.count);
@@ -57,7 +57,7 @@ const MainLayout = ({ children }) => {
   const markAsRead = async (notificationId) => {
     try {
       const token = localStorage.getItem('token');
-      await axios.put(`http://localhost:5000/api/notifications/${notificationId}/read`, {}, {
+      await axios.put(`https://knowledge-hub-2.onrender.com/api/notifications/${notificationId}/read`, {}, {
         headers: { Authorization: `Bearer ${token}` }
       });
       setNotifications(notifications.map(n => 
@@ -72,7 +72,7 @@ const MainLayout = ({ children }) => {
   const markAllAsRead = async () => {
     try {
       const token = localStorage.getItem('token');
-      await axios.put('http://localhost:5000/api/notifications/read-all', {}, {
+      await axios.put('https://knowledge-hub-2.onrender.com/api/notifications/read-all', {}, {
         headers: { Authorization: `Bearer ${token}` }
       });
       setNotifications(notifications.map(n => ({ ...n, read: true })));
